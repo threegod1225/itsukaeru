@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>イツカエル？ 震災帰宅大作戦｜データを元にした防災ゲーム（試作版 v0.1）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#EAF0F2;--land:#F4F7F8;--tokyo:#DCE4E8;--river:#B7D6E5;--road:#C8D1D7;--ink:#1E2B35;--muted:#5F6F7A;
+  --c0:#2B7BC0;--c1:#E0961F;--c2:#C8385E;--stuck:#8A969E;--panel:#FFFFFF;--jam:#D8452F;--wait:#98A4AB;--shade:rgba(30,43,53,.55)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141B21;--land:#1A2228;--tokyo:#1B252C;--river:#25455B;--road:#34414A;--ink:#E6EDF1;--muted:#94A4AE;
+  --c0:#5AA8E6;--c1:#F2B24F;--c2:#EC6A8A;--stuck:#7E8B94;--panel:#25313A;--jam:#F0614A;--wait:#4F5D67;--shade:rgba(0,0,0,.6)}}
+:root[data-theme="dark"]{--bg:#141B21;--land:#1A2228;--tokyo:#1B252C;--river:#25455B;--road:#34414A;--ink:#E6EDF1;--muted:#94A4AE;
+  --c0:#5AA8E6;--c1:#F2B24F;--c2:#EC6A8A;--stuck:#7E8B94;--panel:#25313A;--jam:#F0614A;--wait:#4F5D67;--shade:rgba(0,0,0,.6)}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;
+  font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDPGothic","Meiryo",sans-serif;
+  -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#app{position:relative;display:flex;flex-direction:column;height:100%;max-width:560px;margin:0 auto}
+.hud{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem 1rem .4rem}
+.time{display:flex;flex-direction:column;line-height:1}
+.time small{white-space:nowrap;font-size:.8rem;color:var(--muted);font-weight:700}
+.time b{font-size:2.1rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stats{display:flex;gap:.9rem}
+.stat{display:flex;flex-direction:column;align-items:center;min-width:3.6rem;line-height:1.15}
+.stat i{font-style:normal;font-size:1.15rem}
+.stat b{font-size:1rem;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat span{font-size:.66rem;color:var(--muted);white-space:nowrap}
+#stage{flex:1;position:relative;min-height:0}
+#map{position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation;cursor:pointer}
+.tm{font-style:normal;font-size:.72rem;font-weight:700;color:var(--muted);margin-right:.4rem}
+.toast.rail .tm{margin:0}
+.msgband{height:3.6rem;flex:none;display:flex;align-items:center;justify-content:center;padding:0 .6rem;overflow:hidden}
+.msgband .toast{animation:tin .3s ease both;transition:opacity .25s}
+.msgband .toast.out{opacity:0}
+.toast{background:var(--panel);color:var(--ink);border:1.5px solid var(--ink);border-radius:999px;padding:.35rem .9rem;font-weight:700;font-size:.9rem;
+  }
+.toast.rail{border-radius:14px;border-left:8px solid var(--lc);display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.45rem .9rem .5rem;max-width:92%}
+.toast.rail b{font-size:1rem}
+.route{font-size:.85rem;font-weight:700;line-height:1.4}
+.route i{font-style:normal;color:var(--lc);margin:0 .2rem;font-weight:900}
+#scChip{position:absolute;right:.6rem;top:.4rem;background:var(--ink);color:var(--panel);font-weight:700;font-size:.78rem;border-radius:999px;padding:.25rem .7rem;pointer-events:none}
+#scChip[hidden]{display:none}
+.pop{position:fixed;z-index:20;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;border-radius:18px 18px 0 0;padding-bottom:calc(.6rem + env(safe-area-inset-bottom,0px));background:var(--panel);border:2px solid var(--ink);border-radius:16px;padding:.55rem .6rem .6rem;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.pop[hidden]{display:none}
+.ph{display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem}
+.ph b{font-size:1.05rem;flex:1}
+.pg{width:3.2rem;height:.55rem;border:1.5px solid var(--ink);border-radius:999px;overflow:hidden;display:inline-block}
+.pg i{display:block;height:100%}
+.pgt{font-size:.75rem;font-weight:900;margin-left:-.25rem}
+.pz{font-size:.75rem;font-weight:700;color:var(--muted)}
+.px{appearance:none;border:2px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:10px;font:inherit;font-weight:900;font-size:.85rem;padding:.3rem .7rem;cursor:pointer}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem}
+.pb .tr{font-style:normal;font-size:1.05rem;line-height:1.1rem}
+.pnote{font-size:.72rem!important;color:var(--muted);margin:.35rem 0 0!important;line-height:1.45}
+.pb{appearance:none;display:flex;flex-direction:column;align-items:center;gap:.12rem;border:2px solid var(--road);background:var(--bg);color:var(--ink);border-radius:14px;padding:.45rem .1rem;font:inherit;font-weight:700;cursor:pointer;min-height:5.4rem;touch-action:manipulation}
+.pb[data-k="r"]{border-style:solid}
+.pb span em{font-style:normal;font-size:.64rem;color:var(--muted)}
+.pb span{font-size:.74rem;line-height:1.2;white-space:nowrap;text-align:center}
+.pb small{font-size:.7rem;color:var(--muted);font-weight:700}
+.pb b{font-size:1rem;padding:.2rem .7rem;border-radius:999px;background:var(--wait);color:#fff;margin-top:.1rem}
+.pb.on{border-color:var(--ink);background:var(--panel)}
+.pb.on b{background:var(--ink);color:var(--panel)}
+.pb .dot{width:1.1rem;height:1.1rem}
+.prow{display:flex;gap:.4rem;margin-top:.45rem}
+.pa{flex:1;appearance:none;border:2px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:12px;padding:.55rem .3rem;font:inherit;font-weight:900;font-size:.88rem;cursor:pointer;touch-action:manipulation}
+.pa.on{background:var(--ink);color:var(--panel)}
+.mini{appearance:none;align-self:flex-start;margin-top:.25rem;border:2px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:10px;padding:.25rem .6rem;font:inherit;font-weight:900;font-size:.8rem;cursor:pointer}
+.setup{display:flex;align-items:center;gap:.7rem;width:100%}
+.setup[hidden]{display:none}
+.st{flex:1;display:flex;flex-direction:column;gap:.15rem;line-height:1.35}
+.st b{font-size:1.05rem;font-weight:900}
+.st span{font-size:.78rem;color:var(--muted);font-weight:700}
+.bar button.start{background:var(--ink);color:var(--panel);border-color:var(--ink);min-width:7rem;font-size:1.15rem}
+.bar.setting>:not(.setup){display:none}
+.sheet{position:absolute;left:.6rem;right:.6rem;bottom:.6rem;background:var(--panel);border:2px solid var(--ink);border-radius:20px;padding:.9rem 1rem 1rem;z-index:4;text-align:center}
+.sheet[hidden]{display:none}
+.sheet h2{margin:0 0 .25rem;font-size:1.25rem;font-weight:900}
+.sheet p{margin:0 0 .8rem;font-size:.92rem;color:var(--muted);font-weight:700;line-height:1.5}
+.bar button:disabled{opacity:.35;cursor:default}
+.sub{width:100%;appearance:none;border:2px solid var(--ink);border-radius:16px;background:var(--panel);color:var(--ink);font:inherit;font-weight:900;font-size:1rem;padding:.8rem;margin-top:.6rem;cursor:pointer;line-height:1.4}
+@keyframes tin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.shake{animation:shake 1.1s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{20%,60%{transform:translate(-1.5px,0)}40%,80%{transform:translate(1.5px,0)}}
+.bar{display:flex;align-items:center;gap:.6rem;padding:.4rem 1rem .7rem}
+.bar button{appearance:none;border:2px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:16px;min-width:3.4rem;height:3.4rem;
+  font:inherit;font-weight:900;font-size:1.1rem;display:grid;place-items:center;cursor:pointer}
+.bar button:focus-visible,.ov button:focus-visible{outline:3px solid var(--c0);outline-offset:3px}
+#bPlay svg{width:1.4rem;height:1.4rem;fill:var(--ink)}
+#bPlay[data-state="playing"] .ip,#bPlay[data-state="paused"] .ipa{display:none}
+.sq{display:inline-block;width:.7rem;height:.7rem;background:var(--ink);vertical-align:-.1rem;margin-right:.25rem}
+.legend{flex:1;display:flex;justify-content:flex-end;flex-wrap:wrap;gap:.2rem .7rem;font-size:.72rem;color:var(--muted);font-weight:700}
+.legend span{display:inline-flex;align-items:center;gap:.25rem;white-space:nowrap}
+.dot{display:inline-block;width:.7rem;height:.7rem;border-radius:50%}
+.dh{background:transparent;box-shadow:inset 0 0 0 2px var(--c2)}
+.d0{background:var(--c0)}.d1{background:var(--c1)}.d2{background:var(--c2)}.ds{background:var(--stuck);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.ov{position:absolute;inset:0;background:var(--shade);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:5}
+.ov[hidden]{display:none}
+.card{background:var(--panel);color:var(--ink);border-radius:22px;padding:1.5rem 1.3rem 1.3rem;width:100%;max-width:400px;max-height:100%;overflow:auto}
+.card h1{font-size:2.2rem;font-weight:900;margin:0 0 .5rem;letter-spacing:.02em}
+.card h2{font-size:1.3rem;font-weight:900;margin:.2rem 0 .8rem}
+.card p{margin:0 0 1rem;line-height:1.7;font-size:1rem}
+.how{display:flex;align-items:center;justify-content:center;gap:.9rem;margin:0 0 1.1rem;font-weight:700}
+.chip{display:flex;flex-direction:column;align-items:center;gap:.3rem;font-size:.9rem}
+.home{width:3rem;height:3rem;border-radius:50%;border:2px solid var(--ink);display:grid;place-items:center;background:var(--panel)}
+.home.w{background:var(--wait)}
+.home svg{width:1.5rem;height:1.5rem}
+.card.intro{text-align:center}
+.card.intro h1{margin-bottom:.4rem}
+.sub0{font-size:1.05rem!important;font-weight:900;margin:-.5rem 0 .5rem!important}
+.catch{font-size:1rem!important;font-weight:900;color:var(--jam);margin:0 0 .4rem!important}
+.sub1{font-size:.85rem!important;font-weight:700;color:var(--muted);margin:-.2rem 0 .7rem!important}
+.lead{font-size:1.1rem!important;line-height:1.6;margin:0 0 1rem!important}
+.steps{list-style:none;padding:0;margin:0 0 1.2rem;display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.steps li{border:2px solid var(--road);border-radius:14px;padding:.55rem .2rem;font-weight:900;font-size:.82rem;line-height:1.35}
+.steps .ic{display:block;font-size:1.6rem;margin-bottom:.2rem}
+.more{margin-top:.9rem;text-align:left;font-size:.88rem}
+.more summary{cursor:pointer;font-weight:900;color:var(--muted);text-align:center;list-style-position:inside}
+.boxk{display:inline-block;width:1rem;height:.75rem;border:2px solid var(--ink);border-radius:3px;margin-right:.35rem;vertical-align:-.1rem}
+.gk{display:inline-block;width:1rem;height:.35rem;background:var(--ink);border-radius:2px;margin-right:.35rem;vertical-align:.1rem}
+.more .keys{margin:.6rem 0 .4rem}
+.card.res{text-align:center}
+.card.res h2{margin:.1rem 0 .1rem}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin:.6rem 0 .7rem}
+.tile{border:2px solid var(--road);border-radius:14px;padding:.5rem .3rem;line-height:1.25}
+.tile .ti{font-size:1.3rem}
+.tile .tl{display:block;font-size:.75rem;font-weight:700;color:var(--muted)}
+.tile .tv{display:block;font-size:1.25rem;font-weight:900;margin:.1rem 0}
+.tile .tb{display:block;font-size:.7rem;color:var(--muted)}
+.tile.good{border-color:#2F8FD8}.tile.good .tv{color:#2F8FD8}
+.tile.bad{border-color:var(--jam)}.tile.bad .tv{color:var(--jam)}
+.hint1{font-size:.95rem!important;font-weight:700;line-height:1.6;margin:0 0 .8rem!important;text-align:left;background:var(--bg);border-radius:12px;padding:.6rem .75rem}
+.btn2{display:flex;gap:.45rem;margin-top:.45rem}
+.btn2 .sub[hidden]{display:none}
+.btn2 .sub{flex:1;margin:0!important;font-size:.9rem;padding:.7rem .3rem}
+.more2{margin-top:.7rem;text-align:left;border-top:1px solid var(--road);padding-top:.6rem}
+.more2 summary{cursor:pointer;font-weight:900;font-size:.95rem}
+.more2[hidden]{display:none}
+.more2 .mine{border:none;padding:.3rem 0;margin:.2rem 0}
+.flick{position:absolute;z-index:8;width:0;height:0;pointer-events:none}
+.flick[hidden]{display:none}
+.st0{font-size:.75rem!important;color:var(--muted)}
+#bAllWait b{color:var(--jam)}
+#bAllWait{display:block!important;white-space:nowrap;font-size:.85rem!important;padding:.35rem .7rem!important;height:auto!important;width:auto!important}
+.flick .fn{position:absolute;transform:translateX(-50%);white-space:nowrap;background:var(--ink);color:var(--panel);font-weight:900;font-size:.8rem;padding:.25rem .7rem;border-radius:999px}
+.flick .fc{position:absolute;margin:-1.4rem 0 0 -1.4rem;width:2.8rem;height:2.8rem;opacity:.35;border-radius:50%;background:var(--ink);color:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.flick .fc b{font-size:.85rem}.flick .fc small{display:none}
+.flick .fp{position:absolute;width:3.5rem;height:3.5rem;margin:-1.75rem 0 0 -1.75rem;border-radius:50%;background:var(--panel);border:2px solid var(--road);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.1rem;line-height:1.05;box-shadow:0 3px 10px rgba(0,0,0,.18);transition:transform .08s}
+.flick .fp span{font-size:.55rem;font-weight:900;color:var(--ink);margin-top:.1rem}
+.flick .fp em{font-style:normal;font-size:.55rem;font-weight:900;color:var(--muted)}
+.flick .fp.on{border-color:var(--ink)}.flick .fp.on em{color:var(--ink)}
+.flick .fp.sel{transform:scale(1.28);border-color:var(--c0);background:var(--bg)}
+.flick .fp .dot{width:1rem;height:1rem}
+.fltoast{position:absolute;z-index:7;transform:translate(-50%,-100%);background:var(--ink);color:var(--panel);font-weight:900;font-size:.85rem;padding:.3rem .6rem;border-radius:999px;white-space:nowrap;pointer-events:none;animation:flt 1.1s ease forwards}
+@keyframes flt{0%{opacity:0;margin-top:4px}15%{opacity:1;margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-8px}}
+#map{touch-action:none}
+.log{text-align:left;margin:0 0 .8rem;font-size:.85rem}
+.log ul{list-style:none;padding:0;margin:.35rem 0 0}
+.log li{padding:.25rem 0;border-bottom:1px solid var(--road);line-height:1.45}
+.log li span{display:inline-block;min-width:5.6rem;color:var(--muted);font-weight:700}
+.log li.bad{color:var(--jam);font-weight:700}
+.log li.me{color:var(--muted)}
+.lgnote{font-size:.75rem!important;color:var(--muted);margin:.3rem 0 0!important}
+.mine{border:2px solid var(--road);border-radius:14px;padding:.7rem .8rem;margin:.8rem 0;text-align:left}
+.mrow{display:flex;gap:.5rem;margin:.45rem 0}
+.mrow label{flex:1;display:flex;flex-direction:column;font-size:.75rem;font-weight:700;color:var(--muted);gap:.2rem}
+.mrow select{font:inherit;font-size:.95rem;padding:.45rem;border:2px solid var(--ink);border-radius:10px;background:var(--panel);color:var(--ink)}
+#mOut{font-size:.9rem!important;line-height:1.65;margin:0!important}
+.prac{margin-top:.8rem!important;font-size:.85rem!important;font-weight:700;color:var(--muted)}
+.prac .mini{margin-left:.4rem}
+.back{position:absolute;right:.6rem;bottom:.6rem;z-index:5;appearance:none;border:2px solid var(--ink);background:var(--ink);color:var(--panel);border-radius:12px;padding:.6rem 1rem;font:inherit;font-weight:900;cursor:pointer}
+.back[hidden]{display:none}
+#bSkip{font-size:1.3rem}
+.how2{display:flex;align-items:center;justify-content:center;gap:.8rem;margin:0 0 1rem}
+.stbox{width:3.6rem;height:2.8rem;border:2px solid var(--ink);border-radius:10px;display:grid;place-items:center;font-weight:900;background:var(--panel)}
+.chips{display:flex;flex-direction:column;gap:.25rem}
+.chip2{display:flex;align-items:center;gap:.35rem;font-weight:900;font-size:.85rem;border:2px solid var(--road);border-radius:999px;padding:.15rem .6rem}
+.chip2.on{border-color:var(--ink)}
+.arrow{color:var(--muted);margin-bottom:1.4rem}
+.keys{list-style:none;padding:0;margin:0 0 1.2rem;display:grid;gap:.45rem;font-size:.95rem}
+.keys li{display:flex;align-items:center;gap:.55rem}
+.go{width:100%;appearance:none;border:none;border-radius:16px;background:var(--ink);color:var(--panel);font:inherit;font-weight:900;font-size:1.25rem;padding:.95rem;cursor:pointer}
+.pick{text-align:center;font-weight:900;margin:.2rem 0 .6rem!important}
+.go small,.sub small{display:block;font-size:.78rem;font-weight:700;opacity:.75;margin-top:.15rem}
+.fine{font-size:.78rem!important;color:var(--muted);margin:.9rem 0 0!important;line-height:1.6!important}
+#stars{font-size:1.9rem;letter-spacing:.08em;color:var(--c1);text-align:center;margin:0}
+table{width:100%;border-collapse:collapse;margin:0 0 1rem;font-size:.92rem}
+th,td{padding:.5rem .3rem;border-bottom:1px solid var(--road);text-align:right;font-variant-numeric:tabular-nums}
+th{text-align:left;font-weight:700}
+thead th{font-size:.75rem;color:var(--muted);font-weight:700}
+thead th:not(:first-child){text-align:right}
+tr.good td:nth-child(2){color:var(--c0);font-weight:900}
+tr.bad td:nth-child(2){color:var(--jam);font-weight:900}
+.wts{font-size:.78rem!important;color:var(--muted);margin:-.3rem 0 .8rem!important}
+.scoreline{text-align:center;font-weight:700;color:var(--muted);margin:-.3rem 0 .4rem!important;font-size:.9rem!important}
+.hint{border:2px solid var(--ink);border-radius:14px;padding:.75rem .9rem;margin:0 0 .8rem;font-size:.92rem;line-height:1.65}
+.hint b{display:block;margin-bottom:.25rem}
+.fact{background:var(--bg);border-radius:14px;padding:.8rem .9rem;font-size:.92rem!important;line-height:1.65!important}
+@media (prefers-reduced-motion: reduce){.toast{animation:none}.shake{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="hud">
+    <div class="time" aria-live="off"><small id="day">1日目</small><b id="clock">14:46</b></div>
+    <div class="stats">
+      <div class="stat"><i aria-hidden="true">🏠</i><b id="sHome">0%</b><span>帰宅</span></div>
+      <div class="stat"><i aria-hidden="true">🧍</i><b id="sStuck">0人</b><span>へとへと</span></div>
+      <div class="stat"><i aria-hidden="true">🚑</i><b id="sAmb">0分</b><span>救急の遅れ</span></div>
+    </div>
+  </header>
+  <div id="toasts" class="msgband" aria-live="polite"></div>
+  <div id="stage"><canvas id="map" aria-label="都心からさいたま市・川口・草加方面への帰宅の地図。都内の駅に触れて、帰す・待たせるを選びます"></canvas>    <div id="scChip" hidden></div><button id="bBack" class="back" hidden>結果にもどる</button><div id="flick" class="flick" hidden></div>
+    
+</div>
+  <div class="bar" id="bar">
+    <div class="setup" id="setup" hidden><div class="st"><b>はじめる前に決めよう</b><span class="st0">最初は全員が「帰す」になっています</span><span id="stText">都内の駅に触れて、指をすべらせて選ぶ（触れてすぐ離すとくわしいパネル）</span><button id="bAllWait" class="mini">全部の駅を<b>【待つ】</b>に</button></div><button id="bGo" class="start">スタート</button></div>
+    <button id="bPlay" data-state="paused" aria-label="再生"><svg viewBox="0 0 24 24"><path class="ip" d="M7 4l13 8-13 8z"/><g class="ipa"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></g></svg></button>
+    <button id="bSpeed" aria-pressed="false" aria-label="はやさ">×1</button>
+    <button id="bSkip" aria-label="次の出来事まで進める" title="次の出来事まで">⏭</button>
+    <div class="legend"><span><i class="dot d0"></i>家まで10km未満</span><span><i class="dot d1"></i>10〜20km</span><span><i class="dot d2"></i>20km超</span><span><i class="dot ds"></i>へとへと</span><span><i class="dot dh"></i>待つ場所なし</span><span><i class="sq"></i>電車で帰れる人</span></div>
+  </div>
+
+  <div class="ov" id="intro">
+    <div class="card intro">
+      <h1>イツカエル？</h1>
+      <p class="sub0">〜震災帰宅大作戦〜</p>
+      <p class="catch">急がば待て！<br>帰すタイミングは、あなた次第。</p>
+      <p class="sub1">データを元にした防災ゲーム（試作版 v0.1）</p>
+      <p class="lead">地震で電車が止まった。<br>都心から、さいたま市・川口・草加方面へ<br>帰る人を、<b>いつ帰す？</b></p>
+      <ol class="steps" aria-label="あそびかた">
+        <li><span class="ic">👆</span>駅に触れて<br>すべらせる</li>
+        <li><span class="ic">🚃</span>電車で帰す<br>歩く・待つ</li>
+        <li><span class="ic">🚉</span>道と駅を<br>混ませない</li>
+      </ol>
+      <button class="go" id="bEast">東日本大震災（2011年）<small>電車は当時の記録どおりに動く</small></button>
+      <button class="sub" id="bShuto" hidden>首都直下地震（想定）<small>電車はしばらく動かない</small></button>
+      <p class="prac">はじめての人は練習から：<button class="mini" id="bP1">練習1</button><button class="mini" id="bP2">練習2</button></p>
+      <details class="more" open><summary>点の色の意味</summary>
+        <ul class="keys">
+          <li><i class="dot d0"></i>家まで10km未満</li>
+          <li><i class="dot d1"></i>10〜20km</li>
+          <li><i class="dot d2"></i>20km超</li>
+          <li><i class="sq"></i>電車で帰れる人</li>
+          <li><i class="dot dh"></i>待つ場所のない人</li>
+          <li><span class="boxk"></span>駅の箱：その地域で待っている人（駅全体の人数ではありません）</li>
+          <li><span class="gk"></span>ゲージ：駅へ向かう・乗車を待つ人（ゲーム上の混雑目安）</li>
+        </ul>
+        <p class="fine">東日本大震災時の首都圏の鉄道再開記録などを参考に、帰宅のタイミングを考えるゲームです。原則として3日間の待機を基本とする大規模な地震でも、被害や交通の状況によって帰宅を始める判断は変わります。余震や火災による道の安全は、このゲームでは扱っていません。人数と一時滞在施設は今の値を参考にし、条件を簡略化しています。現実の被害を予測するものではありません。</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="ov" id="result" hidden>
+    <div class="card res">
+      <p id="stars" aria-label="評価"></p>
+      <h2 id="rTitle"></h2>
+      <p id="score" class="scoreline"></p>
+      <div class="tiles" id="rTiles"></div>
+      <p class="hint1" id="rHint"></p>
+      <button class="go" id="bAgain">もう一度</button>
+      <div class="btn2"><button class="sub" id="bMap">🗺 地図で見る</button><button class="sub" id="bOther"></button></div>
+      <details class="more2" id="dMine"><summary>自分の通勤・通学に置き換えると</summary>
+        <div class="mine"><div class="mrow"><label>職場<select id="mHub"></select></label><label>家<select id="mHome"></select></label></div><p id="mOut"></p></div>
+      </details>
+      <details class="more2" id="dRecipe" hidden><summary>帰し方の例</summary><p id="rRecipe"></p></details>
+      <details class="more2"><summary>くわしい結果</summary>
+        <table><thead><tr><th></th><th>あなた</th><th>みんな<br>すぐ帰った</th></tr></thead><tbody id="rRows"></tbody></table>
+        <div class="log" id="rLog"></div>
+        <p class="fact" id="rFact"></p>
+        <p class="wts" id="rWeights"></p>
+        <p class="fine" id="rFine"></p>
+      </details>
+    </div>
+  </div>
+</div>
+<div id="pop" class="pop" hidden></div>
+<script>
+/*@@CALC-BEGIN@@*/
+const DATA={"meta": {"perDot": 500}, "nodes": {"shinjuku": {"name": "新宿", "x": 14, "y": 136, "type": "hub"}, "ikebukuro": {"name": "池袋", "x": 30, "y": 118, "type": "hub"}, "nagatacho": {"name": "永田町", "x": 46, "y": 141, "type": "hub"}, "ueno": {"name": "上野", "x": 66, "y": 121, "type": "hub"}, "tokyo": {"name": "東京", "x": 82, "y": 139, "type": "hub"}, "toda": {"name": "戸田", "x": 18, "y": 86, "type": "home"}, "warabi": {"name": "蕨", "x": 33, "y": 75, "type": "home"}, "urawa": {"name": "浦和", "x": 40, "y": 48, "type": "home"}, "omiya": {"name": "大宮", "x": 36, "y": 8, "type": "home"}, "minuma": {"name": "見沼", "x": 56, "y": 22, "type": "home"}, "kawaguchi": {"name": "川口", "x": 58, "y": 86, "type": "home"}, "misono": {"name": "浦和美園", "x": 66, "y": 48, "type": "home"}, "iwatsuki": {"name": "岩槻", "x": 76, "y": 14, "type": "home"}, "soka": {"name": "草加", "x": 86, "y": 88, "type": "home"}, "koshigaya": {"name": "越谷", "x": 88, "y": 52, "type": "home"}, "kasukabe": {"name": "春日部", "x": 94, "y": 10, "type": "via"}}, "roads": [["shinjuku", "toda", 14.5, "ent"], ["shinjuku", "kawaguchi", 14.3, "ent"], ["shinjuku", "soka", 20.7, "ent"], ["ikebukuro", "toda", 9.7, "ent"], ["ikebukuro", "kawaguchi", 9.5, "ent"], ["ikebukuro", "soka", 15.9, "ent"], ["ueno", "toda", 15.4, "ent"], ["ueno", "kawaguchi", 12.9, "ent"], ["ueno", "soka", 13.7, "ent"], ["tokyo", "toda", 17.5, "ent"], ["tokyo", "kawaguchi", 15.6, "ent"], ["tokyo", "soka", 17.7, "ent"], ["nagatacho", "toda", 16.9, "ent"], ["nagatacho", "kawaguchi", 15.6, "ent"], ["nagatacho", "soka", 19.8, "ent"], ["toda", "warabi", 2.7, "r17"], ["warabi", "urawa", 4.7, "r17"], ["urawa", "omiya", 6.3, "r17"], ["kawaguchi", "misono", 11.5, "r122"], ["misono", "iwatsuki", 8.4, "r122"], ["soka", "koshigaya", 7.4, "r4"], ["omiya", "minuma", 4.8, "local"], ["minuma", "iwatsuki", 4.4, "local"]], "river": [[-2, 108], [14, 103], [30, 106], [48, 100], [64, 104], [80, 99], [102, 102]], "odKmMeasured": {"ueno>minuma": 30.1, "shinjuku>minuma": 30.1, "nagatacho>minuma": 32.5}, "corridors": {"r17": ["ikebukuro", "toda", "warabi", "urawa", "omiya"], "r122": ["ueno", "kawaguchi", "misono", "iwatsuki"], "r4": ["ueno", "soka", "koshigaya"]}, "nearRef": {"toda": "ikebukuro", "warabi": "ikebukuro", "urawa": "ikebukuro", "omiya": "ikebukuro", "minuma": "ikebukuro", "kawaguchi": "ueno", "misono": "ueno", "iwatsuki": "ueno", "soka": "ueno", "koshigaya": "ueno"}, "rails": [{"id": "sr7", "name": "南北線・埼玉高速鉄道", "color": "#2BA6A0", "stops": ["nagatacho", "kawaguchi", "misono"], "resume": [1, 21, 20], "off": -2.4, "subway": true, "pool": "sr7"}, {"id": "jrueno", "name": "高崎線・宇都宮線", "color": "#F08A24", "stops": ["ueno", "urawa", "omiya"], "resume": [2, 7, 0], "off": 4.2, "pool": "jrchu", "note": "2011年当時は上野発着（上野東京ラインは2015年開業）"}, {"id": "shonan", "name": "湘南新宿ライン", "color": "#C2185B", "stops": ["shinjuku", "ikebukuro", "urawa", "omiya"], "resume": [2, 8, 50], "off": -4.2, "pool": "jrchu"}, {"id": "saikyo", "name": "埼京線", "color": "#1F9E6A", "stops": ["shinjuku", "ikebukuro", "toda", "urawa", "omiya"], "resume": [2, 8, 50], "off": -2.4, "pool": "saikyo"}, {"id": "keihin", "name": "京浜東北線", "color": "#2F8FD8", "stops": ["tokyo", "ueno", "kawaguchi", "warabi", "urawa", "omiya"], "resume": [2, 8, 50], "off": 2.4, "pool": "keihin"}, {"id": "tobu", "name": "東武伊勢崎線", "color": "#8E5BB5", "stops": ["ueno", "soka", "koshigaya", "kasukabe"], "resume": [2, 8, 57], "off": 2.4, "pool": "tobu"}, {"id": "metrotobu", "name": "千代田線・日比谷線（北千住で東武へ乗り換え）", "color": "#B48FD6", "stops": ["nagatacho", "tokyo", "soka", "koshigaya", "kasukabe"], "resume": [2, 8, 57], "off": -2.4, "pool": "tobu", "note": "千代田線（大手町〜北千住）は3/11 22:55、日比谷線（南千住〜北千住）は3/12 8:43、東武は8:57に再開。半蔵門線（押上で東武へ）は伊勢崎線 北千住〜浅草の再開が3/12 13:00のため使わない"}, {"id": "noda", "name": "野田線", "color": "#6B8E23", "stops": ["omiya", "minuma", "iwatsuki", "kasukabe"], "resume": [2, 9, 45], "off": 2.4, "pool": "noda"}, {"id": "marunouchi", "name": "丸ノ内線", "color": "#E2554F", "stops": ["shinjuku", "nagatacho", "tokyo", "ikebukuro"], "resume": [1, 23, 0], "off": 1.2, "subway": true, "pool": "city", "urban": true}, {"id": "yurakucho", "name": "有楽町線", "color": "#C1A470", "stops": ["nagatacho", "ikebukuro"], "resume": [1, 22, 15], "off": -1.2, "subway": true, "pool": "city", "urban": true}, {"id": "ginza", "name": "銀座線", "color": "#F39700", "stops": ["ueno", "tokyo", "nagatacho"], "resume": [1, 20, 40], "off": -1.2, "subway": true, "pool": "city", "urban": true}, {"id": "yamanote", "name": "山手線", "color": "#80C241", "stops": ["tokyo", "ueno", "ikebukuro", "shinjuku"], "resume": [2, 8, 35], "off": 2.6, "pool": "city", "urban": true}], "hubParams": {"tokyo": {"pres": 0.819, "r": 0.0474, "cap_all": 80263, "kitaku": 1227564, "cov": 0.449, "capSaitama": 6800}, "nagatacho": {"pres": 0.838, "r": 0.04, "cap_all": 71056, "kitaku": 947060, "cov": 0.515, "capSaitama": 4096}, "shinjuku": {"pres": 0.794, "r": 0.0818, "cap_all": 99124, "kitaku": 821842, "cov": 0.828, "capSaitama": 12471}, "ikebukuro": {"pres": 0.685, "r": 0.091, "cap_all": 18981, "kitaku": 214355, "cov": 0.608, "capSaitama": 3628}, "ueno": {"pres": 0.674, "r": 0.1055, "cap_all": 19476, "kitaku": 204473, "cov": 0.654, "capSaitama": 4408}}, "workers": {"tokyo": {"omiya": 13087, "minuma": 4430, "urawa": 29341, "misono": 5153, "iwatsuki": 2081, "kawaguchi": 29420, "soka": 15663, "koshigaya": 16469, "warabi": 4223, "toda": 6561}, "nagatacho": {"omiya": 8837, "minuma": 3093, "urawa": 20015, "misono": 3486, "iwatsuki": 1253, "kawaguchi": 20474, "soka": 6548, "koshigaya": 6809, "warabi": 3014, "toda": 5110}, "shinjuku": {"omiya": 8978, "minuma": 3078, "urawa": 19157, "misono": 3104, "iwatsuki": 1299, "kawaguchi": 17465, "soka": 4782, "koshigaya": 5327, "warabi": 2667, "toda": 6980}, "ikebukuro": {"omiya": 3121, "minuma": 1110, "urawa": 6266, "misono": 1103, "iwatsuki": 504, "kawaguchi": 6839, "soka": 1582, "koshigaya": 1737, "warabi": 1083, "toda": 2598}, "ueno": {"omiya": 2489, "minuma": 893, "urawa": 4954, "misono": 1000, "iwatsuki": 465, "kawaguchi": 6330, "soka": 3459, "koshigaya": 3390, "warabi": 966, "toda": 1330}}, "near": {"omiya": 5116, "minuma": 2138, "urawa": 12556, "misono": 2694, "iwatsuki": 1246, "kawaguchi": 24531, "soka": 13618, "koshigaya": 9143, "warabi": 2961, "toda": 6179}, "shuto": {"K": 2.5285, "rate": 0.1457}, "pools": {"sr7": {"stages": [{"t": [1, 21, 20], "capH": 15012}], "src": "埼玉高速 川口元郷→赤羽岩淵"}, "jrchu": {"stages": [{"t": [2, 7, 0], "capH": 25816, "label": "高崎線"}, {"t": [2, 8, 40], "capH": 22128, "label": "宇都宮線"}], "src": "高崎線 宮原→大宮／宇都宮線 土呂→大宮"}, "saikyo": {"stages": [{"t": [2, 8, 50], "capH": 28040}], "src": "埼京線 板橋→池袋"}, "keihin": {"stages": [{"t": [2, 8, 50], "capH": 34040}], "src": "京浜東北線 川口→赤羽"}, "tobu": {"stages": [{"t": [2, 8, 57], "capH": 39590}], "src": "東武伊勢崎線 小菅→北千住"}, "noda": {"stages": [{"t": [2, 9, 45], "capH": 10350}], "src": "野田線 北大宮→大宮"}, "city": {"stages": [], "unlimited": true, "src": "都内の乗り継ぎ用。輸送力の制約は埼玉へ向かう路線で見る"}}, "nearGroup": {"omiya": {"akabane": 0.8226, "kitasenju": 0.1774}, "minuma": {"akabane": 0.7491, "kitasenju": 0.2509}, "urawa": {"akabane": 0.8274, "kitasenju": 0.1726}, "misono": {"akabane": 0.7299, "kitasenju": 0.2701}, "iwatsuki": {"akabane": 0.6255, "kitasenju": 0.3745}, "kawaguchi": {"akabane": 0.6811, "kitasenju": 0.3189}, "soka": {"akabane": 0.1912, "kitasenju": 0.8088}, "koshigaya": {"akabane": 0.3061, "kitasenju": 0.6939}, "warabi": {"akabane": 0.8272, "kitasenju": 0.1728}, "toda": {"akabane": 0.8891, "kitasenju": 0.1109}}, "bgRoute": {"akabane": {"toda": ["saikyo"], "warabi": ["keihin"], "kawaguchi": ["keihin"], "urawa": ["keihin"], "omiya": ["keihin"], "minuma": ["keihin", "noda"], "iwatsuki": ["keihin", "noda"], "misono": ["sr7"], "soka": ["tobu"], "koshigaya": ["tobu"]}, "kitasenju": {"toda": ["saikyo"], "warabi": ["keihin"], "kawaguchi": ["keihin"], "urawa": ["keihin"], "omiya": ["keihin"], "minuma": ["tobu", "noda"], "iwatsuki": ["tobu", "noda"], "misono": ["sr7"], "soka": ["tobu"], "koshigaya": ["tobu"]}}};
+/* ===== かえるタイミング 計算エンジン ===== */
+const T0 = 14*60+46;
+const tmin = (d,h,m) => (d-1)*1440 + h*60 + m - T0;
+const CFG = {
+  V0: 4/60, KJ: 240, CELL: 0.5, VMIN: 0.04, RELEASE: 0.2, RUSH: 0.1, HUB_EXIT: 30,
+  STATION_IN: 3, JAM_MIN: 40, SHELTER_OPEN: 360, BG_SPREAD: 120, APPROACH_MIN: 10, APPROACH_SPREAD: 20, SUSPEND: 20, GRACE: 15, RAIL_V: 0.6, AMB_V: 0.5, KMU: 0.36,
+  RAIL_FACTOR: 0.5, TIRED_V: 0.4, REST_CYCLE: 45, REST_WALK: 30,
+  T_END: tmin(3,12,0), T72: tmin(4,14,46), STOCK_GRACE: 360, NEAR_SPREAD: 90
+};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function riverY(R,x){for(let i=0;i<R.length-1;i++){const [x0,y0]=R[i],[x1,y1]=R[i+1];if(x>=x0&&x<=x1)return y0+(y1-y0)*(x-x0)/(x1-x0);}return R[R.length-1][1];}
+
+function buildWorld(D, scenario, rngSeed){
+  const ids=Object.keys(D.nodes); const N={}; ids.forEach(id=>N[id]={id,...D.nodes[id]});
+  const hubs=ids.filter(i=>N[i].type==="hub"), homes=ids.filter(i=>N[i].type==="home");
+  const edges=D.roads.map(([a,b,km,name],i)=>({id:i,a,b,km,name,cells:Math.max(1,Math.ceil(km/CFG.CELL))}));
+  const adj={}; ids.forEach(i=>adj[i]=[]);
+  edges.forEach(e=>{adj[e.a].push({to:e.b,e,dir:1});adj[e.b].push({to:e.a,e,dir:-1});});
+  function dij(src){const dist={},prev={};ids.forEach(i=>dist[i]=Infinity);dist[src]=0;const Q=new Set(ids);
+    while(Q.size){let u=null;Q.forEach(q=>{if(u===null||dist[q]<dist[u])u=q;});Q.delete(u);if(dist[u]===Infinity)break;
+      adj[u].forEach(({to,e,dir})=>{if(N[to].type==="hub"&&to!==src)return;const nd=dist[u]+e.km;if(nd<dist[to]){dist[to]=nd;prev[to]={from:u,e,dir};}});}
+    return {dist,prev};}
+  const walk={};
+  hubs.forEach(h=>{const {dist,prev}=dij(h);walk[h]={};
+    homes.forEach(m=>{const path=[];let c=m;while(c!==h){const p=prev[c];path.unshift({e:p.e.id,dir:p.dir});c=p.from;}
+      walk[h][m]={path,graphKm:dist[m],km:dist[m]};});});
+  // 実測の直通距離で補正（見沼）
+  const meas=D.odKmMeasured||{}; const ratios=[];
+  Object.entries(meas).forEach(([k,v])=>{const [h,m]=k.split('>');if(!walk[h]||!walk[h][m])return;ratios.push(v/walk[h][m].graphKm);walk[h][m].km=v;});
+  const avgR=ratios.length?ratios.reduce((a,b)=>a+b,0)/ratios.length:1;
+  hubs.forEach(h=>{if(walk[h].minuma&&!meas[h+'>minuma'])walk[h].minuma.km=walk[h].minuma.graphKm*avgR;});
+  const railEdges=[];
+  D.rails.forEach((r,li)=>{for(let i=0;i<r.stops.length-1;i++){const a=N[r.stops[i]],b=N[r.stops[i+1]];
+    railEdges.push({a:a.id,b:b.id,line:li,km:Math.hypot(a.x-b.x,a.y-b.y)*CFG.KMU});}});
+  const corridors={};
+  // 救急車の走行ルート：都心の駅から埼玉側入口までの各道路と、埼玉側の幹線
+  D.roads.forEach(([a,b,km,name],i)=>{if(name==='ent')corridors['e'+i]={path:[{e:i,dir:1}],km};});
+  Object.entries(D.corridors).forEach(([k,stops])=>{if(!stops.every(x=>N[x]))return;const path=[];/*幹線*/for(let i=0;i<stops.length-1;i++){
+      const e=edges.find(e=>(e.a===stops[i]&&e.b===stops[i+1])||(e.b===stops[i]&&e.a===stops[i+1]));path.push({e:e.id,dir:e.a===stops[i]?1:-1});}
+    corridors[k]={path,km:path.reduce((s,p)=>s+edges[p.e].km,0)};});
+  // 近接区の人：川を渡る地点から歩き出す
+  const nearStart={};
+  homes.forEach(m=>{const h=D.nearRef[m];if(!walk[h])return;const wk=walk[h][m];let acc=0,found=null;
+    for(const s of wk.path){const e=edges[s.e];const A=N[s.dir>0?e.a:e.b],B=N[s.dir>0?e.b:e.a];
+      for(let k=0;k<=100;k++){const t=k/100;const x=A.x+(B.x-A.x)*t,y=A.y+(B.y-A.y)*t;if(y<=riverY(D.river,x)+1.5){found=acc+e.km*t;break;}}
+      if(found!==null)break;acc+=e.km;}
+    nearStart[m]={hub:h,g0:found||0};});
+  let resume;let subwayT=null;
+  if(scenario==='shuto'){const r=mulberry32(rngSeed||1);subwayT=tmin(5,0,0)+Math.floor(r()*3*1440);resume=D.rails.map(x=>x.subway?subwayT:Infinity);}
+  else resume=D.rails.map(r=>tmin(...r.resume));
+  // 輸送力は「プール」単位（同じ線路を共有する路線は輸送力を分け合う）
+  const poolIds=Object.keys(D.pools);const poolIdx={};poolIds.forEach((p,i)=>poolIdx[p]=i);
+  const linePool=D.rails.map(r=>poolIdx[r.pool]);
+  const poolUnl=poolIds.map(p=>!!D.pools[p].unlimited);
+  const poolStages=poolIds.map(p=>D.pools[p].stages.map(st=>({t:scenario==='shuto'?(p==='sr7'?subwayT:Infinity):tmin(...st.t),cap:st.capH*CFG.RAIL_FACTOR/D.meta.perDot/60,label:st.label})));
+  const poolFull=poolStages.map(sts=>sts.reduce((a,b)=>a+b.cap,0));
+  return {D,N,hubs,homes,edges,walk,railEdges,corridors,resume,linePool,poolIds,poolStages,poolFull,poolUnl,nearStart,scenario};
+}
+// 都の被害想定：10km以内は全員帰宅可能、20km超は全員帰宅困難（10〜20kmは1km増すごとに帰宅可能な人が10%減る）
+// 電車の経路：乗り換え1回を3km相当の負担とみなし、乗り換えの少ない経路を選ぶ（同じ路線に乗り続ける方を優先）
+function railPath(W,h,m,isRun){const TR=3;const adj={};
+  W.railEdges.forEach(re=>{if(!isRun(re.line))return;[[re.a,re.b],[re.b,re.a]].forEach(([a,b])=>{(adj[a]=adj[a]||[]).push({to:b,line:re.line,km:re.km});});});
+  const dist={},prev={};const key=(n,l)=>n+'|'+l;const Q=[];
+  (adj[h]||[]).forEach(e=>{const k=key(h,e.line);dist[k]=0;Q.push(k);});
+  if(!Q.length)return null;let best=null,bestK=null;const done=new Set();
+  while(true){let u=null,ud=Infinity;for(const k in dist){if(!done.has(k)&&dist[k]<ud){ud=dist[k];u=k;}}if(u===null)break;done.add(u);
+    const [n,l]=u.split('|');const li=+l;if(n===m){best=ud;bestK=u;break;}
+    for(const e of (adj[n]||[])){const k=key(e.to,e.line);const c=ud+e.km+(e.line===li?0:TR);
+      // 同じ駅での乗り換え
+      if(dist[k]===undefined||c<dist[k]){dist[k]=c;prev[k]={from:u,line:e.line,km:e.km,a:n,b:e.to};}}}
+  if(bestK===null)return null;const legs=[];let k=bestK;
+  while(prev[k]){const p=prev[k];legs.unshift({from:p.a,to:p.b,km:p.km,line:p.line});k=p.from;}
+  return {legs,km:legs.reduce((a,b)=>a+b.km,0)};}
+function cls(km){ return km<10?0:(km<=20?1:2); }
+
+function lrRound(items){ // largest remainder
+  const tot=Math.round(items.reduce((s,x)=>s+x.v,0));let fl=items.map(x=>({...x,n:Math.floor(x.v),f:x.v-Math.floor(x.v)}));
+  let rem=tot-fl.reduce((s,x)=>s+x.n,0);fl.sort((a,b)=>b.f-a.f);for(let i=0;i<rem&&i<fl.length;i++)fl[i].n++;return fl;}
+
+function createSim(W, seed, opt){
+  opt=opt||{};const SC=W.scenario;const shelters=new Set(opt.shelters||W.hubs);const D=W.D,PER=D.meta.perDot;
+  const T_END=SC==='shuto'?tmin(8,24,0):CFG.T_END;
+  const rng=mulberry32(seed);
+  // 待つ場所のない人：東日本＝PT調査の私用目的の滞留者／首都直下＝都の想定（帰宅困難者の約15％）に合わせて拡大
+  const wItems=[],hItems=[],nItems=[];
+  W.hubs.forEach(h=>{const P=D.hubParams[h];W.homes.forEach(m=>{const w=D.workers[h][m]||0;
+    let hl=w*P.r, wk=w;
+    if(SC==='shuto'){const tot=w*(1+P.r);hl=tot*(P.r/(1+P.r))*D.shuto.K;wk=tot-hl;}
+    wItems.push({h,m,v:wk/PER});hItems.push({h,m,v:hl/PER});});});
+  W.homes.forEach(m=>{if(W.nearStart[m])nItems.push({m,v:(D.near[m]||0)/PER});});
+  const dots=[],waiting={},forced={},queue={},approach={};
+  W.hubs.forEach(h=>{waiting[h]={};forced[h]={};queue[h]=[];approach[h]=[];W.homes.forEach(m=>{waiting[h][m]=[];forced[h][m]=[];});});
+  const shelterLeft={};W.hubs.forEach(h=>shelterLeft[h]=shelters.has(h)?Math.round(D.hubParams[h].capSaitama/PER):0);
+  const mk=(h,m,extra)=>{const wk=W.walk[h][m];const d={id:dots.length,hub:h,home:m,km:wk.km,cls:cls(wk.km),scale:wk.graphKm/wk.km,
+    stamina:10+rng()*10,phase:Math.floor(rng()*45),walked:0,mode:"wait",pi:0,p:0,jit:(rng()-0.5)*2,everStuck:false,...extra};dots.push(d);return d;};
+  lrRound(wItems).forEach(x=>{for(let i=0;i<x.n;i++)waiting[x.h][x.m].push(mk(x.h,x.m,{}));});
+  lrRound(hItems).forEach(x=>{for(let i=0;i<x.n;i++){const d=mk(x.h,x.m,{homeless:true});
+    if(shelterLeft[x.h]>0){shelterLeft[x.h]--;d.sheltered=true;waiting[x.h][x.m].push(d);}else forced[x.h][x.m].push(d);}});
+  // 背景の利用者：県境近くの区で働き、家まで10kmを超える人。画面には出さず、赤羽・北千住から乗って埼玉方面の列車の空きを使う
+  const bg=[];const poolIx={};W.poolIds.forEach((p,i)=>poolIx[p]=i);
+  if(D.nearGroup&&D.bgRoute)W.homes.forEach(m=>{const ns=W.nearStart[m];if(!ns)return;const wk=W.walk[ns.hub][m];const sc_=wk.graphKm/wk.km;const rem=(wk.graphKm-ns.g0)/sc_;
+    if(rem<=10)return;const tot=(D.near[m]||0)/PER;['akabane','kitasenju'].forEach(g=>{const n=tot*(D.nearGroup[m][g]||0);if(n<=0)return;
+      const ps=D.bgRoute[g][m].map(p=>poolIx[p]);const start=Math.max(...ps.map(p=>W.poolStages[p].length?W.poolStages[p][0].t:Infinity));
+      const nTok=Math.round(n);const times=[];if(isFinite(start))for(let q=0;q<nTok;q++)times.push(start+Math.floor((q+rng())*CFG.BG_SPREAD/Math.max(1,nTok)));
+      bg.push({g,m,ps,total:nTok,boarded:0,start,times,next:0,wait:[]});});});
+  const nearPending=[];
+  lrRound(nItems).forEach(x=>{const ns=W.nearStart[x.m];for(let i=0;i<x.n;i++){const d=mk(ns.hub,x.m,{near:true});
+    const wk=W.walk[ns.hub][x.m];const remReal=(wk.graphKm-ns.g0)/d.scale;if(remReal>10){dots.pop();continue;}d.km=remReal;d.cls=cls(remReal);
+    d.mode="pending";d.startT=1+Math.floor(rng()*CFG.NEAR_SPREAD);d.g0=ns.g0;nearPending.push(d);}});
+  const relAcc={};W.hubs.forEach(h=>relAcc[h]={});
+  const poolAcc=W.poolIds.map(()=>0);const poolCap=W.poolIds.map(()=>0);
+  const stationMax={};
+  const dens=W.edges.map(e=>new Float32Array(e.cells));
+  const amb=[],ambSched=[],ck=Object.keys(W.corridors);
+  // 救急・救助の出動は期間を区切らず、一定の間隔で続く（72時間で終わる区切りは置かない）
+  // 首都直下は、救命・救助の需要が大きい発災後72時間は20分おき、その後は40分おき（想定）
+  {let i=0;const t0_=opt.startT||0;for(let t=20;t<=T_END;i++){if(t>t0_)ambSched.push({t,c:ck[i%ck.length]});t+=(SC==='shuto'?(t<CFG.T72?20:40):30);}}
+  const hubSusp={},hubGrace={};W.hubs.forEach(h=>{hubSusp[h]=-1;hubGrace[h]=-1;});
+  const S={discard:W.poolIds.map(()=>0),accMax:W.poolIds.map(()=>0),borrow:W.poolIds.map(()=>0),capSum:W.poolIds.map(()=>0),used:W.poolIds.map(()=>0),usedMin:W.poolIds.map(()=>0),usedMax:W.poolIds.map(()=>0),capMax:W.poolIds.map(()=>0),bg,t:opt.startT||0,marks:{tired:{},amb:{},jam:{}},log:[],hubSusp,hubGrace,SC,shelters,dots,waiting,forced,queue,approach,stationMax,dens,amb,running:W.resume.map(()=>false),susp:W.resume.map(()=>-1),grace:W.resume.map(()=>-1),
+    events:[],stats:{early:0,gaveUp:0,jams:0,over:0,home:0,stuckEver:0,stuckNow:0,ambDelay:0,ambDone:0,last:0,forcedWalk:0},done:false,rot:0};
+  let railCache={};
+  function railRoute(h,m){const key=h+">"+m;if(key in railCache)return railCache[key];
+    const r=railPath(W,h,m,li=>S.running[li]);return railCache[key]=r;}
+  // 駅のホームの許容量：その駅に発着する、埼玉へ向かう路線の輸送力（40分ぶん）
+  {const saved=S.running.slice();S.running=S.running.map(()=>true);
+   W.hubs.forEach(h=>{const ps=new Set();D.rails.forEach((r,li)=>{const p=W.linePool[li];if(r.stops.includes(h)&&!W.poolUnl[p])ps.add(p);});
+     let c=0;ps.forEach(p=>c+=W.poolFull[p]);stationMax[h]=Math.max(6,c*CFG.JAM_MIN);});
+   S.running=saved;railCache={};}
+  function arrive(d){d.mode="home";d.at=S.t;S.stats.home++;S.stats.last=S.t;}
+  function cellOf(d){const s=d.path[d.pi];const e=W.edges[s.e];const u=s.dir>0?d.p:e.km-d.p;return [s.e,Math.min(e.cells-1,Math.max(0,Math.floor(u/CFG.CELL)))];}
+  function speedAt(eid,c){const k=S.dens[eid][c]/CFG.CELL;return Math.max(CFG.VMIN,1-k/CFG.KJ);}
+  function advance(o,dist){while(dist>0&&o.pi<o.path.length){const e=W.edges[o.path[o.pi].e];const rem=e.km-o.p;if(dist<rem){o.p+=dist;dist=0;}else{dist-=rem;o.pi++;o.p=0;}}return o.pi>=o.path.length;}
+  function startWalk(d){if(S.SC==='shuto'&&S.t<CFG.T72&&!d.near)S.stats.early++;d.mode="walk";d.path=W.walk[d.hub][d.home].path;d.pi=0;d.p=0;}
+  const suspended=li=>false;
+  function step(policy){
+    if(S.done)return;S.t++;
+    if(S.t===CFG.SHELTER_OPEN)S.events.push({t:S.t,type:"shelter"});
+    W.resume.forEach((rt,i)=>{if(!S.running[i]&&S.t>=rt){S.running[i]=true;railCache={};S.events.push({t:S.t,type:"rail",line:i});}});
+    // 近接区の人が歩き出す
+    for(const d of nearPending){if(d.mode==="pending"&&S.t>=d.startT){startWalk(d);advance(d,d.g0);}}
+    S.dens.forEach(a=>a.fill(0));
+    for(const d of S.dots){if(d.mode==="walk"||d.mode==="stuck"){const [e,c]=cellOf(d);S.dens[e][c]+=1;}}
+    S.rot=(S.rot+1)%W.homes.length;
+    W.poolStages.forEach((sts,pi)=>{let c=0;sts.forEach((st,k)=>{if(S.t>=st.t){c+=st.cap;if(S.t===st.t&&k>0)S.events.push({t:S.t,type:"stage",pool:pi,label:st.label});}});poolCap[pi]=c;S.capSum[pi]+=c;S.usedMin[pi]=0;
+      // 枠の繰り越しは500人単位の端数調整に必要な分（1点＝500人ぶん）までに限る。空席で出た列車の枠を長くためておくことはしない
+      const lim=Math.max(1,c);const nv=poolAcc[pi]+c;if(nv>lim){S.discard[pi]+=nv-lim;}poolAcc[pi]=Math.min(nv,lim);
+      if(poolAcc[pi]>S.accMax[pi])S.accMax[pi]=poolAcc[pi];
+      if(S.used[pi]>S.capSum[pi]+1e-9)S.borrow[pi]++;});
+    for(const h of W.hubs){
+      let exitB=CFG.HUB_EXIT,inB=CFG.STATION_IN;
+      for(let j=0;j<W.homes.length*2;j++){const m=W.homes[(j+S.rot)%W.homes.length];const isF=j>=W.homes.length;const L=(isF?S.forced:S.waiting)[h][m];const key=isF?m+'*':m;
+        if(relAcc[h][key]==null)relAcc[h][key]=0;
+        const cl=cls(W.walk[h][m].km);const rp=railRoute(h,m);const ph=policy[h]||{};
+        // 電車で帰れる人は「電車で帰す」のときだけ駅へ。電車で帰れない人は、その色が「歩いて帰す」のときだけ歩く
+        // 待つ場所のない人：一時滞在施設が開く（発災から約6時間）までは駅前の広場などで待ち、開いたときに入れなかった人が歩き出す
+        const allowed=isF?S.t>=CFG.SHELTER_OPEN:(rp?ph.r==="go":ph[cl]==="go");
+        if(!L.length||!allowed){relAcc[h][key]=0;continue;}relAcc[h][key]+=Math.max(0.5,(rp?CFG.RUSH:CFG.RELEASE)*L.length);
+        if(rp){while(relAcc[h][key]>=1&&L.length&&inB>=1){relAcc[h][key]--;inB--;const d=L.shift();d.mode="approach";d.legs=rp.legs;d.rkm=rp.km;d.rp=0;
+            d.qAt=S.t+CFG.APPROACH_MIN+Math.floor(rng()*CFG.APPROACH_SPREAD);S.approach[h].push(d);}}
+        else{while(relAcc[h][key]>=1&&L.length&&exitB>=1){relAcc[h][key]--;exitB--;const d=L.shift();if(d.homeless&&!d.sheltered&&!d.counted){d.counted=true;S.stats.forcedWalk++;}startWalk(d);}}
+      }
+      const A=S.approach[h];for(let i=0;i<A.length;){if(S.t>=A[i].qAt){const d=A.splice(i,1)[0];d.mode="queue";d.qAt=S.t;S.queue[h].push(d);}else i++;}
+    }
+    // ---- 乗車：駅の処理順で有利不利が出ないよう、すべての駅（と背景の利用者）の乗車待ちを、ホームに着いた順に並べて乗せる（先着順）
+    {const cand=[];for(const h of W.hubs)if(S.t>=S.hubSusp[h])S.queue[h].forEach(d=>cand.push(d));
+     for(const b of S.bg)while(b.next<b.times.length&&b.times[b.next]<=S.t){b.wait.push({qAt:b.times[b.next],ps:b.ps,bg:b});b.next++;}
+     for(const b of S.bg)b.wait.forEach(x=>cand.push(x));
+     cand.sort((a,b)=>a.qAt-b.qAt||(a.id||0)-(b.id||0));
+     const psOf=d=>d.ps||(d.ps=[...new Set(d.legs.map(l=>W.linePool[l.line]))].filter(p=>!W.poolUnl[p]));
+     for(const d of cand){const ps=psOf(d);if(ps.some(p=>poolAcc[p]<1))continue;ps.forEach(p=>{poolAcc[p]--;S.used[p]++;S.usedMin[p]++;});
+       if(d.bg){d.bg.wait.splice(d.bg.wait.indexOf(d),1);d.bg.boarded++;S.stats.boardBg=(S.stats.boardBg||0)+1;}
+       else{const Q=S.queue[d.hub];Q.splice(Q.indexOf(d),1);d.mode="rail";S.stats.boardHub=(S.stats.boardHub||0)+1;}}}
+    for(const h of W.hubs){const Q=S.queue[h];
+      if(Q.length>S.stationMax[h]&&S.t>=S.hubGrace[h]){S.hubSusp[h]=S.t+CFG.SUSPEND;S.hubGrace[h]=S.t+CFG.SUSPEND+CFG.GRACE;
+        // あふれた人はあきらめて歩き出す
+        const over=Q.splice(Math.floor(S.stationMax[h]*0.6));over.forEach(d=>{d.gaveUp=true;S.stats.gaveUp=(S.stats.gaveUp||0)+1;startWalk(d);});
+        S.stats.jams++;S.events.push({t:S.t,type:"jam",hub:h,gaveUp:over.length});S.marks.jam[h]=(S.marks.jam[h]||0)+1;S.log.push({t:S.t,type:'jam',hub:h,gaveUp:over.length});}
+      if(S.hubSusp[h]===S.t)S.events.push({t:S.t,type:"unjam",hub:h});
+    }
+    W.poolIds.forEach((_,p)=>{if(S.used[p]>S.capSum[p]+1e-9)S.borrow[p]++;if(S.usedMin[p]>S.usedMax[p])S.usedMax[p]=S.usedMin[p];if(poolCap[p]>S.capMax[p])S.capMax[p]=poolCap[p];});
+    let stuckNow=0;
+    for(const d of S.dots){
+      if(d.mode==="walk"||d.mode==="stuck"){const [e,c]=cellOf(d);let f=speedAt(e,c);
+        if(d.mode==="stuck"){const resting=((S.t+d.phase)%CFG.REST_CYCLE)>=CFG.REST_WALK;f=resting?0:f*CFG.TIRED_V;}
+        const mv=CFG.V0*f;d.walked+=mv;const pi0=d.pi;if(advance(d,mv*d.scale)){arrive(d);continue;}
+        if(d.mode==="walk"&&d.walked>=d.stamina){d.mode="stuck";if(!d.everStuck){d.everStuck=true;S.stats.stuckEver++;
+          const [ee,cc]=cellOf(d);const k=ee+':'+cc;S.marks.tired[k]=(S.marks.tired[k]||0)+1;if(S.stats.stuckEver===1)S.log.push({t:S.t,type:'tired',e:ee});}}
+        if(d.pi>pi0&&S.running.some(x=>x)){const ps=d.path[d.pi-1];const pe=W.edges[ps.e];const node=ps.dir>0?pe.b:pe.a;
+          const rp=railRoute(node,d.home);if(rp){const ps=[...new Set(rp.legs.map(l=>W.linePool[l.line]))].filter(p=>!W.poolUnl[p]);
+            // 途中の駅から乗る人も、その先の列車の空きを使う（空きがなければ歩き続ける）
+            if(!ps.some(p=>poolAcc[p]<1)){ps.forEach(p=>{poolAcc[p]--;S.used[p]++;S.usedMin[p]++;});S.stats.boardMid=(S.stats.boardMid||0)+1;d.mode="rail";d.legs=rp.legs;d.rkm=rp.km;d.rp=0;continue;}}}}
+      else if(d.mode==="rail"){d.rp+=CFG.RAIL_V;if(d.rp>=d.rkm)arrive(d);}
+      if(d.mode==="stuck")stuckNow++;
+    }
+    S.stats.stuckNow=stuckNow;
+    if(S.SC==='shuto'){if(S.t===CFG.T72)S.events.push({t:S.t,type:"t72"});
+      if(S.t>=CFG.T72+CFG.STOCK_GRACE)for(const h of W.hubs)for(const m of W.homes)for(const d of S.waiting[h][m])if(!d.over){d.over=true;S.stats.over++;}}
+    while(ambSched.length&&ambSched[0].t<=S.t){const s=ambSched.shift();const c=W.corridors[s.c];amb.push({path:c.path,pi:0,p:0,km:c.km,t0:S.t,c:s.c,done:false});}
+    for(const a of amb){if(a.done)continue;const s=a.path[a.pi];const e=W.edges[s.e];const u=s.dir>0?a.p:e.km-a.p;
+      const cc=Math.min(e.cells-1,Math.floor(u/CFG.CELL));const v=CFG.AMB_V*Math.max(0.03,1-(S.dens[s.e][cc]/CFG.CELL)/(CFG.KJ*0.5));
+      if(v<CFG.AMB_V*0.5){const k=s.e+':'+cc;if(!S.marks.amb[k])S.log.push({t:S.t,type:'amb',e:s.e});S.marks.amb[k]=(S.marks.amb[k]||0)+1;}
+      if(advance(a,v)){a.done=true;S.stats.ambDone++;S.stats.ambDelay+=Math.max(0,(S.t-a.t0)-a.km/CFG.AMB_V);}}
+    if(S.stats.home===S.dots.length||S.t>=T_END){S.done=true;for(const a of amb)if(!a.done)S.stats.ambDelay+=Math.max(0,(S.t-a.t0)-a.km/CFG.AMB_V);}
+  }
+  // 最初の時点で施設に入れなかった待つ場所のない人を数える
+  return {S,step,railRoute,cellOf,T_END};
+}
+
+
+/* 参考解（最善に近い帰し方）の候補と、採点 */
+function greedyShelters(W,sim){const hl={};W.hubs.forEach(h=>hl[h]=0);sim.S.dots.forEach(d=>{if(d.homeless)hl[d.hub]++;});
+  const cap=h=>Math.round(W.D.hubParams[h].capSaitama/W.D.meta.perDot);
+  return [...W.hubs].sort((a,b)=>Math.min(hl[b],cap(b))-Math.min(hl[a],cap(a))).slice(0,3);}
+function townOrder(W){return [...W.homes].sort((a,b)=>W.walk.tokyo[a].km-W.walk.tokyo[b].km);}
+
+// 練習ステージ：地図の一部だけを切り出す
+const STAGES={
+  p1:{name:'練習1：南北線（埼玉高速鉄道直通）だけで帰す',short:'練習1',hubs:['nagatacho'],homes:['kawaguchi','misono'],rails:['sr7'],start:[1,21,0],
+      goal:'21:20に南北線（埼玉高速鉄道直通）が動きます。永田町駅の🚃を入れたり切ったりして、駅をあふれさせずに帰しましょう。'},
+  p2:{name:'練習2：2つの駅で路線を分け合う',short:'練習2',hubs:['ikebukuro','nagatacho'],homes:['toda','warabi','urawa','omiya','kawaguchi','misono'],rails:['sr7','yurakucho','saikyo','shonan','keihin'],start:[2,8,30],
+      goal:'池袋と永田町（有楽町線で池袋へ）の人が、同じ埼京線・湘南新宿ラインを使います。両方の駅のゲージを見て帰しましょう。家まで10km未満（青）の人は歩いても帰れます。'}};
+function subsetData(D,st){const keepN=new Set([...st.hubs,...st.homes]);const d=JSON.parse(JSON.stringify(D));
+  Object.keys(d.nodes).forEach(k=>{if(!keepN.has(k))delete d.nodes[k];});
+  d.roads=d.roads.filter(([a,b])=>keepN.has(a)&&keepN.has(b));
+  d.rails=d.rails.filter(r=>st.rails.includes(r.id)).map(r=>({...r,stops:r.stops.filter(x=>keepN.has(x))})).filter(r=>r.stops.length>=2);
+  const w={};st.hubs.forEach(h=>{w[h]={};st.homes.forEach(m=>w[h][m]=D.workers[h][m]||0);});d.workers=w;d.near={};
+  const hp={};st.hubs.forEach(h=>hp[h]=D.hubParams[h]);d.hubParams=hp;d.odKmMeasured={};
+  const nr={};st.homes.forEach(m=>{if(st.hubs.includes(D.nearRef[m]))nr[m]=D.nearRef[m];});d.nearRef=nr;return d;}
+function allPol(W,v){const p={};W.hubs.forEach(h=>{p[h]={r:v,0:v,1:v,2:v};});return p;}
+// 駅ごと：電車で帰れる人を、駅のゲージがしきい値未満のときだけ駅へ向かわせる。歩いて帰すのは walkCls の色だけ（walkFrom 以降）
+function polFeedback(W,th,walkCls,walkFrom){return (S)=>{const p=allPol(W,'wait');
+  for(const h of W.hubs){if((S.queue[h].length+S.approach[h].length)/S.stationMax[h]<th)p[h].r='go';
+    if(walkCls)for(const c of walkCls)if(S.t>=walkFrom)p[h][c]='go';}
+  return p;};}
+// 首都直下：start以降、gap分おきに駅×色を1つずつ「歩いて帰す」に。電車はゲージを見て
+function polStagger(W,start,gap,th){const order=[];[0,1,2].forEach(c=>W.hubs.forEach(h=>order.push([h,c])));
+  return (S)=>{const p=allPol(W,'wait');W.hubs.forEach(h=>{if((S.queue[h].length+S.approach[h].length)/S.stationMax[h]<th)p[h].r='go';});
+    order.forEach(([h,c],i)=>{if(S.t>=start+i*gap)p[h][c]='go';});return p;};}
+function runSim(W,shel,pol,startT){const sim=createSim(W,42,{shelters:shel,startT:startT||W.startT||0});while(!sim.S.done)sim.step(pol(sim.S,sim));return sim;}
+function homelessTotal(sim){return sim.S.dots.filter(d=>d.homeless).length;}
+function metricsOf(W,sim){const s=sim.S.stats;return {homeN:s.home,last:sim.S.stats.home===sim.S.dots.length?s.last:sim.T_END+600,tired:s.stuckEver,amb:s.ambDelay,gaveUp:s.gaveUp,forced:s.forcedWalk,over:s.over,early:s.early,N:sim.S.dots.length,HL:homelessTotal(sim)};}
+const WEIGHTS={east:{tired:.35,amb:.25,gaveUp:.25,last:.15},shuto:{amb:.5,over:.3,last:.2}};
+function scoreOf(sc,you,base,ref,T_END){const w=WEIGHTS[sc];const parts={};
+  const lin=(v,best,worst)=>worst<=best?(v<=best?1:0):Math.max(0,Math.min(1,(worst-v)/(worst-best)));
+  for(const k of Object.keys(w)){let sc_;
+    if(k==='last')sc_=lin(you.last,ref.last,T_END+600);
+    else if(k==='gaveUp')sc_=lin(you.gaveUp,0,you.N*0.3);
+    else if(k==='over')sc_=lin(you.over,0,you.N*0.2);
+    else if(k==='forced')sc_=lin(you.forced,ref.forced,you.HL);
+    else sc_=lin(you[k],ref[k],Math.max(base[k],ref[k]+1));
+    parts[k]=sc_;}
+  // 帰り着けなかった人がいる場合は、その割合だけ評価を下げる（待たせたままでは高得点にならない）
+  const homeShare=you.homeN!=null?you.homeN/you.N:1;
+  const total=Object.keys(w).reduce((a,k)=>a+w[k]*parts[k],0)*100*homeShare;return {total,parts,homeShare};}
+function computeRef(W){
+  const shel=W.hubs;
+  const base=metricsOf(W,runSim(W,shel,()=>allPol(W,'go')));
+  let cands;
+  if(W.scenario==='shuto')cands=[[CFG.T72-1440,10],[CFG.T72-720,10],[CFG.T72,10],[CFG.T72,30]].map(([st,g])=>({g,st,pol:polStagger(W,st,g,0.5)}));
+  else{const r0=Math.min(...W.resume.filter(x=>isFinite(x)&&x>0&&x>=tmin(2,0,0)));
+    // 青（家まで10km未満）の人を歩かせる時刻は複数試す（地震直後・夕方・最初の電車の再開時）
+    cands=[0.5,0.6].flatMap(g=>[{g,pol:polFeedback(W,g)},...[1,tmin(1,18,0),r0].map(wf=>({g,walk:[0],wf,pol:polFeedback(W,g,[0],wf)}))]);}
+  let best=null;
+  for(const c of cands){const m=metricsOf(W,runSim(W,shel,c.pol));
+    const bad=m.tired/(base.tired+1)+m.amb/(base.amb+1)+m.gaveUp/m.N+m.forced/(m.HL+1)+m.over/m.N+m.early/m.N+(m.last-base.last)/2880;
+    if(!best||bad<best.bad)best={bad,m,c};}
+  return {base,ref:best.m,g:best.c.g,st:best.c.st,walk:best.c.walk,wf:best.c.wf,shel};}
+
+
+/*@@CALC-END@@*/
+</script>
+<script>
+(function(){
+const PER = DATA.meta.perDot;
+const LW = 100, LH = 159, RATE = 6;
+const cv = document.getElementById('map'), ctx = cv.getContext('2d');
+const stage = document.getElementById('stage');
+const $ = id => document.getElementById(id);
+let C = {};
+function readColors(){const cs=getComputedStyle(document.documentElement);
+  ['bg','tokyo','river','road','ink','muted','c0','c1','c2','stuck','panel','jam','wait'].forEach(k=>C[k]=cs.getPropertyValue('--'+k).trim());}
+readColors(); matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors);
+
+let SC='east', W, N, base, ref, refInfo, shelters=new Set(), seedR=1, forgotSince={};
+const SCN={east:{name:'東日本大震災（2011年）の電車の動き'},shuto:{name:'首都直下地震（想定）'}};
+let hinted={}, sim, policy, speed=1, paused=true, acc=0, phase='intro', hintUntil=0, flashes=[], anims={}, reach={}, homeTotal={}, prevIwatsuki=null;
+const allGo=()=>allPol(W,'go');
+const refCache={};
+let resultQueued=false,STG=null,showMarks=false,actLog=[],WE=null;
+function setWorld(sc,stg){SC=sc;STG=stg||null;seedR=sc==='shuto'?((Math.random()*1e9)|0):1;
+  if(STG){W=buildWorld(subsetData(DATA,STAGES[STG]),'east',1);W.startT=tmin(...STAGES[STG].start);}else{W=buildWorld(DATA,sc,seedR);W.startT=0;}N=W.N;
+  const key=(STG||sc)+':'+seedR;if(!refCache[key])refCache[key]=computeRef(W);refInfo=refCache[key];base=refInfo.base;ref=refInfo.ref;
+  }
+function computeBase(){}
+function computeReach(){W.homes.forEach(m=>{reach[m]=W.hubs.filter(h=>sim.railRoute(h,m)).length;});}
+function newSim(){sim=createSim(W,42,{shelters:W.hubs,startT:W.startT||0});homeTotal={};W.homes.forEach(m=>homeTotal[m]=0);sim.S.dots.forEach(d=>homeTotal[d.home]++);computeReach();updateHUD();}
+function reset(){resultQueued=false;showMarks=false;actLog=[];$('bBack').hidden=true;hinted={};forgotSince={};shelters=new Set();newSim();policy=STG?allPol(W,'wait'):allGo();acc=0;flashes=[];anims={};clearTimeout(msgTimer);$('toasts').innerHTML='';
+  homeTotal={};W.homes.forEach(m=>homeTotal[m]=0);sim.S.dots.forEach(d=>homeTotal[d.home]++);computeReach();updateHUD();}
+
+// layout
+let sc=1,ox=0,oy=0,dpr=1;
+function resize(){const r=stage.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=r.width*dpr;cv.height=r.height*dpr;sc=Math.min(r.width/LW,r.height/LH);ox=(r.width-LW*sc)/2;oy=(r.height-LH*sc)/2;}
+new ResizeObserver(resize).observe(stage);resize();
+const X=x=>ox+x*sc, Y=y=>oy+y*sc;
+function edgePoint(eid,u,jit){const e=W.edges[eid],A=N[e.a],B=N[e.b];const t=u/e.km;const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);
+  return [A.x+dx*t-dy/L*jit,A.y+dy*t+dx/L*jit];}
+function segOff(a,b,off){const A=N[a],B=N[b];const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);const nx=-dy/L*off,ny=dx/L*off;return [A.x+nx,A.y+ny,B.x+nx,B.y+ny];}
+const railSeg=re=>segOff(re.a,re.b,W.D.rails[re.line].off);
+function railPoint(leg,t){const re=W.railEdges.find(r=>r.line===leg.line&&((r.a===leg.from&&r.b===leg.to)||(r.b===leg.from&&r.a===leg.to)));
+  const [ax,ay,bx,by]=railSeg(re);if(re.a!==leg.from)t=1-t;return [ax+(bx-ax)*t,ay+(by-ay)*t];}
+const RIVER=DATA.river;
+function line(pts,w,col,dash){ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y)));
+  ctx.lineWidth=w*sc;ctx.strokeStyle=col;ctx.setLineDash(dash?dash.map(v=>v*sc):[]);ctx.stroke();ctx.setLineDash([]);}
+function mix(a,b,t){const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));const A=p(a),B=p(b);return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`;}
+const clsCol=c=>[C.c0,C.c1,C.c2][c];
+function label(t,x,y,size=3.3,col=C.ink){ctx.font=`700 ${size*sc}px "Zen Maru Gothic",sans-serif`;ctx.textAlign='center';ctx.lineJoin='round';
+  ctx.lineWidth=1.1*sc;ctx.strokeStyle=C.bg;ctx.strokeText(t,X(x),Y(y));ctx.fillStyle=col;ctx.fillText(t,X(x),Y(y));}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function train(x,y,col,s){const w=4.2*s*sc,h=2.4*s*sc;ctx.fillStyle=col;roundRect(X(x)-w/2,Y(y)-h/2,w,h,0.9*s*sc);ctx.fill();
+  ctx.lineWidth=0.35*sc;ctx.strokeStyle=C.ink;ctx.stroke();ctx.fillStyle='#fff';
+  for(let i=-1;i<=1;i++)ctx.fillRect(X(x)+i*1.25*s*sc-0.45*s*sc,Y(y)-0.65*s*sc,0.9*s*sc,0.7*s*sc);}
+function lineSegs(li){return W.railEdges.filter(r=>r.line===li).map(railSeg);}
+
+function drawRails(now){const S=sim.S;ctx.lineCap='butt';
+  W.D.rails.forEach((r,li)=>{const segs=lineSegs(li);const on=S.running[li];const col=r.color;
+    if(!on){ctx.globalAlpha=r.urban?0.3:0.45;segs.forEach(([ax,ay,bx,by])=>line([[ax,ay],[bx,by]],r.urban?0.6:0.9,col,[1.4,1.2]));ctx.globalAlpha=1;return;}
+    if(S.t<S.susp[li]){const blink=0.25+0.2*Math.sin(now/220);ctx.globalAlpha=blink;segs.forEach(([ax,ay,bx,by])=>line([[ax,ay],[bx,by]],3.2,C.jam));
+      ctx.globalAlpha=0.8;segs.forEach(([ax,ay,bx,by])=>line([[ax,ay],[bx,by]],1.1,col,[1.4,1.2]));ctx.globalAlpha=1;return;}
+    const age=anims[li]!=null?now-anims[li]:9e9;
+    if(age<2600){const f=Math.min(1,age/1500);const lens=segs.map(([ax,ay,bx,by])=>Math.hypot(bx-ax,by-ay));const tot=lens.reduce((a,b)=>a+b,0);
+      ctx.globalAlpha=0.28*(1-age/2600);segs.forEach(([ax,ay,bx,by])=>line([[ax,ay],[bx,by]],4.2,col));ctx.globalAlpha=0.45;
+      segs.forEach(([ax,ay,bx,by])=>line([[ax,ay],[bx,by]],0.9,col,[1.4,1.2]));ctx.globalAlpha=1;
+      let rem=f*tot,front=null;segs.forEach(([ax,ay,bx,by],i)=>{if(rem<=0)return;const t=Math.min(1,rem/lens[i]);
+        line([[ax,ay],[ax+(bx-ax)*t,ay+(by-ay)*t]],1.5,col);front=[ax+(bx-ax)*t,ay+(by-ay)*t];rem-=lens[i];});
+      if(front&&f<1)train(front[0],front[1],col,1.15);}
+    else segs.forEach(([ax,ay,bx,by])=>line([[ax,ay],[bx,by]],r.urban?0.9:1.4,col));});
+  ctx.lineCap='round';}
+
+function draw(now){drawCore(now);if(showMarks)drawMarks();}
+function drawCore(now){
+  const S=sim.S;ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle=C.bg;ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle=C.tokyo;ctx.beginPath();ctx.moveTo(X(-2),Y(LH+4));RIVER.forEach(([x,y])=>ctx.lineTo(X(x),Y(y)));ctx.lineTo(X(102),Y(LH+4));ctx.fill();
+  line(RIVER,5,C.river);
+  ctx.fillStyle=C.muted;ctx.font=`500 ${2.8*sc}px "Zen Maru Gothic",sans-serif`;ctx.textAlign='left';
+  ctx.fillText('荒川',X(2),Y(100));ctx.fillText('東京',X(2),Y(115));ctx.fillText('埼玉',X(2),Y(95));
+  ctx.lineCap='round';
+  W.edges.forEach(e=>line([[N[e.a].x,N[e.a].y],[N[e.b].x,N[e.b].y]],e.name==='ent'?2.2:3.4,C.road));
+  W.edges.forEach((e,ei)=>{const A=N[e.a],B=N[e.b];for(let c=0;c<e.cells;c++){const k=S.dens[ei][c]/CFG.CELL/CFG.KJ;if(k<0.12)continue;
+    const t0=c/e.cells,t1=(c+1)/e.cells;line([[A.x+(B.x-A.x)*t0,A.y+(B.y-A.y)*t0],[A.x+(B.x-A.x)*t1,A.y+(B.y-A.y)*t1]],(e.name==='ent'?2.2:3.4)+Math.min(1,k)*2.2,mix(C.road,C.jam,Math.min(1,(k-0.12)/0.5)));}});
+  drawRails(now);
+  W.hubs.forEach(h=>{const n=N[h];const w=14,hh=11;ctx.fillStyle=C.panel;ctx.strokeStyle=C.ink;ctx.lineWidth=0.5*sc;
+    roundRect(X(n.x-w/2),Y(n.y-hh/2),w*sc,hh*sc,1.2*sc);ctx.fill();ctx.stroke();
+    // 箱の中：電車で帰れる人は黒い四角で上側に、電車で帰れない人は距離の色で下側に
+    const list=[];let railWait=0;W.homes.forEach(m=>{const rp=sim.railRoute(h,m);const lc=rp?C.ink:null;
+      S.waiting[h][m].forEach(d=>{list.push([lc?0:1,d.homeless?1:0,lc||clsCol(d.cls),lc?1:0]);if(lc)railWait++;});S.forced[h][m].forEach(d=>list.push([2,1,clsCol(d.cls),0]));});
+    list.sort((a,b)=>a[0]-b[0]||(a[2]<b[2]?-1:a[2]>b[2]?1:0)||a[1]-b[1]);
+    list.slice(0,252).forEach(([g,hl,col,isRail],i)=>{const cx=n.x-w/2+0.95+(i%18)*0.71,cy=n.y-hh/2+0.95+Math.floor(i/18)*0.69;
+      ctx.beginPath();if(isRail){ctx.rect(X(cx-0.29),Y(cy-0.29),0.58*sc,0.58*sc);}else ctx.arc(X(cx),Y(cy),(hl?0.24:0.29)*sc,0,7);
+      if(hl&&!isRail){ctx.lineWidth=0.18*sc;ctx.strokeStyle=col;ctx.stroke();}else{ctx.fillStyle=col;ctx.fill();}});
+    // 帰し忘れの目印：電車で帰れる人が待っているのに🚃が「待つ」
+    const forgot=railWait>0&&!(policy[h]&&policy[h].r==='go');
+    if(forgot){const k=0.5+0.5*Math.sin(now/260);ctx.globalAlpha=0.55+0.45*k;ctx.lineWidth=1.1*sc;ctx.strokeStyle=C.c1;roundRect(X(n.x-w/2-1),Y(n.y-hh/2-1),(w+2)*sc,(hh+2)*sc,1.8*sc);ctx.stroke();ctx.globalAlpha=1;
+      if(!forgotSince[h])forgotSince[h]=S.t;
+      if(phase==='run'&&S.t-forgotSince[h]>=90&&!hinted['forgot'+h]){hinted['forgot'+h]=true;simpleToast(`🚃 ${n.name}駅に、電車で帰れる人が待っています`);}}
+    else forgotSince[h]=0;
+    if(true){const bx=n.x-w/2-0.6,by=n.y-hh/2-0.6;ctx.beginPath();ctx.arc(X(bx),Y(by),2.6*sc,0,7);ctx.fillStyle=C.panel;ctx.fill();ctx.lineWidth=0.6*sc;ctx.strokeStyle=C.ink;ctx.stroke();
+      ctx.font=`${3*sc}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⛺',X(bx),Y(by)+0.1*sc);ctx.textBaseline='alphabetic';}
+    // 駅のホームの混み具合
+    const q=S.queue[h].length/S.stationMax[h],qa=(S.queue[h].length+S.approach[h].length)/S.stationMax[h];const jammed=S.t<S.hubSusp[h];
+    if(qa>0||jammed){const gx=n.x-w/2,gy=n.y-hh/2-3.2,gw=w,gh=2;ctx.fillStyle=C.panel;roundRect(X(gx),Y(gy),gw*sc,gh*sc,1*sc);ctx.fill();
+      ctx.globalAlpha=0.3;ctx.fillStyle=C.ink;roundRect(X(gx),Y(gy),Math.max(gh,Math.min(1,qa)*gw)*sc,gh*sc,1*sc);ctx.fill();ctx.globalAlpha=1;
+      if(q>0){ctx.fillStyle=q>0.7||jammed?C.jam:C.ink;roundRect(X(gx),Y(gy),Math.max(gh,Math.min(1,q)*gw)*sc,gh*sc,1*sc);ctx.fill();}
+      ctx.lineWidth=0.4*sc;ctx.strokeStyle=C.ink;roundRect(X(gx),Y(gy),gw*sc,gh*sc,1*sc);ctx.stroke();}
+    if(jammed){ctx.globalAlpha=0.5+0.5*Math.sin(now/200);ctx.lineWidth=1.2*sc;ctx.strokeStyle=C.jam;roundRect(X(n.x-w/2-0.8),Y(n.y-hh/2-0.8),(w+1.6)*sc,(hh+1.6)*sc,1.6*sc);ctx.stroke();ctx.globalAlpha=1;}
+    if(q>0.6&&!hinted.crowd){hinted.crowd=true;simpleToast('🚉 駅が混んできた。あふれると電車が止まる');}
+    label(n.name,n.x,n.y+hh/2+4);
+    // ランプ：左が電車、右の3つが歩き（色ごと）。点灯＝帰している
+    {const ly=n.y+hh/2+7.6;const p_=policy[h]||{};
+     const ron=p_.r==='go';ctx.beginPath();roundRect(X(n.x-7.2),Y(ly-1.5),4.6*sc,3*sc,1*sc);ctx.fillStyle=ron?C.ink:C.panel;ctx.fill();ctx.lineWidth=0.45*sc;ctx.strokeStyle=ron?C.ink:C.stuck;ctx.stroke();
+     ctx.font=`${2.1*sc}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🚃',X(n.x-4.9),Y(ly+0.1));
+     [0,1,2].forEach(c=>{const lx=n.x-0.2+c*3.4;ctx.beginPath();ctx.arc(X(lx),Y(ly),1.35*sc,0,7);const on=p_[c]==='go';
+       ctx.fillStyle=on?clsCol(c):C.panel;ctx.fill();ctx.lineWidth=0.45*sc;ctx.strokeStyle=on?C.ink:C.stuck;ctx.stroke();});}
+    if(phase==='setup'&&now<hintUntil){const k=(now%1200)/1200;ctx.beginPath();roundRect(X(n.x-w/2-1-k*2),Y(n.y-hh/2-1-k*2),(w+2+k*4)*sc,(hh+2+k*4)*sc,2*sc);ctx.globalAlpha=1-k;ctx.lineWidth=0.6*sc;ctx.strokeStyle=C.ink;ctx.stroke();ctx.globalAlpha=1;}
+    if(popHub===h){ctx.lineWidth=1*sc;ctx.strokeStyle=C.c0;roundRect(X(n.x-w/2-1),Y(n.y-hh/2-1),(w+2)*sc,(hh+2)*sc,1.8*sc);ctx.stroke();}});
+  Object.values(N).filter(n=>n.type==='via').forEach(n=>{ctx.beginPath();ctx.arc(X(n.x),Y(n.y),1.6*sc,0,7);ctx.fillStyle=C.panel;ctx.fill();ctx.lineWidth=0.6*sc;ctx.strokeStyle=C.ink;ctx.stroke();label(n.name,n.x-6,n.y+1.2,2.8,C.muted);});
+  (()=>{})();
+  for(const d of S.dots){
+    if(d.mode==='walk'||d.mode==='stuck'){const s=d.path[d.pi];const e=W.edges[s.e];let u=s.dir>0?d.p:e.km-d.p;
+      u=Math.max(0,Math.min(e.km,u+((d.id*7919)%100/100-0.5)*0.9));const [x,y]=edgePoint(s.e,u,d.jit*2.6);
+      ctx.beginPath();ctx.arc(X(x),Y(y),(d.mode==='stuck'?0.85:0.75)*sc,0,7);
+      if(d.mode==='stuck'){ctx.fillStyle=C.stuck;ctx.fill();ctx.lineWidth=0.35*sc;ctx.strokeStyle=C.ink;ctx.stroke();}
+      else{ctx.fillStyle=clsCol(d.cls);ctx.fill();}}
+    else if(d.mode==='rail'){let r=d.rp,i=0;while(i<d.legs.length-1&&r>d.legs[i].km){r-=d.legs[i].km;i++;}
+      const [x,y]=railPoint(d.legs[i],Math.min(1,r/d.legs[i].km));ctx.beginPath();ctx.arc(X(x),Y(y),0.9*sc,0,7);
+      ctx.fillStyle=clsCol(d.cls);ctx.fill();ctx.lineWidth=0.4*sc;ctx.strokeStyle=C.panel;ctx.stroke();}}
+  for(const a of S.amb){if(a.done)continue;const s=a.path[a.pi];const e=W.edges[s.e];const u=s.dir>0?a.p:e.km-a.p;const [x,y]=edgePoint(s.e,u,0);
+    const w=3.6*sc,h=2.6*sc;ctx.fillStyle='#FFFFFF';ctx.strokeStyle=C.ink;ctx.lineWidth=0.4*sc;roundRect(X(x)-w/2,Y(y)-h/2,w,h,0.6*sc);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#D33';ctx.fillRect(X(x)-0.3*sc,Y(y)-0.9*sc,0.6*sc,1.8*sc);ctx.fillRect(X(x)-0.9*sc,Y(y)-0.3*sc,1.8*sc,0.6*sc);}
+  W.homes.forEach(m=>{const n=N[m];const r=5.2;const go=true;
+    const pulse=now<hintUntil?(1+0.12*Math.sin(now/180)):1;
+    ctx.beginPath();ctx.arc(X(n.x),Y(n.y),r*sc,0,7);ctx.fillStyle=C.panel;ctx.fill();ctx.lineWidth=0.6*sc;ctx.strokeStyle=C.ink;ctx.stroke();
+    const arr=S.dots.reduce((s,d)=>s+(d.home===m&&d.mode==='home'?1:0),0);const fr=arr/homeTotal[m];
+    if(fr>0){ctx.beginPath();ctx.arc(X(n.x),Y(n.y),(r+1.1)*sc,-Math.PI/2,-Math.PI/2+fr*Math.PI*2);ctx.lineWidth=1.1*sc;ctx.strokeStyle=C.ink;ctx.stroke();}
+    const cx=X(n.x),cy=Y(n.y);
+    if(go){const s=sc*1.6;ctx.fillStyle=C.ink;ctx.beginPath();ctx.moveTo(cx-1.6*s,cy-0.1*s);ctx.lineTo(cx,cy-1.6*s);ctx.lineTo(cx+1.6*s,cy-0.1*s);
+      ctx.lineTo(cx+1.1*s,cy-0.1*s);ctx.lineTo(cx+1.1*s,cy+1.3*s);ctx.lineTo(cx-1.1*s,cy+1.3*s);ctx.lineTo(cx-1.1*s,cy-0.1*s);ctx.closePath();ctx.fill();}
+    else{ctx.fillStyle=C.panel;ctx.fillRect(X(n.x-1.7),Y(n.y-2.2),1.2*sc,4.4*sc);ctx.fillRect(X(n.x+0.5),Y(n.y-2.2),1.2*sc,4.4*sc);}
+    // 電車で帰れるマーク：全部の駅から＝塗り、一部の駅から＝白抜き
+    const k=reach[m]||0;if(k>0){const bx=n.x+4.4,by=n.y-4.4;const full=k===W.hubs.length;
+      ctx.globalAlpha=full?1:0.75;ctx.beginPath();ctx.arc(X(bx),Y(by),2.7*sc,0,7);ctx.fillStyle=C.panel;ctx.fill();
+      ctx.lineWidth=(full?0.8:0.5)*sc;ctx.strokeStyle=C.ink;ctx.setLineDash(full?[]:[0.8*sc,0.6*sc]);ctx.stroke();ctx.setLineDash([]);
+      ctx.font=`${3.1*sc}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=C.ink;ctx.fillText('🚃',X(bx),Y(by)+0.15*sc);
+      ctx.textBaseline='alphabetic';ctx.globalAlpha=1;}
+    label(n.name,n.x,n.y+r+4.6);});
+  flashes=flashes.filter(f=>now-f.t<(f.long?1400:450));flashes.forEach(f=>{const n=N[f.m];const dur=f.long?1400:450;const k=(now-f.t)/dur;
+    ctx.beginPath();ctx.arc(X(n.x),Y(n.y),(5.2+k*(f.long?8:5))*sc,0,7);ctx.globalAlpha=1-k;ctx.lineWidth=(f.long?1.2:0.6)*sc;ctx.strokeStyle=f.col||C.ink;ctx.stroke();ctx.globalAlpha=1;});
+}
+
+// HUD
+const fmtClock=t=>{const a=t+T0;const d=Math.floor(a/1440)+1;const m=a%1440;return [d,`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`];};
+const fmtWhen=t=>{const [d,c]=fmtClock(t);return (d===1?'当日 ':d===2?'翌日 ':`${d}日目 `)+c;};
+const fmtPeople=n=>{const p=n*PER;return p>=10000?`${(p/10000).toFixed(p>=100000?0:1)}万人`:`${p.toLocaleString()}人`;};
+const fmtMin=m=>{m=Math.round(m);return m>=60?`${Math.floor(m/60)}時間${m%60?m%60+'分':''}`:`${m}分`;};
+function liveAmb(){const S=sim.S;let x=S.stats.ambDelay;if(!S.done)for(const a of S.amb)if(!a.done){let done=0;for(let i=0;i<a.pi;i++)done+=W.edges[a.path[i].e].km;done+=a.p;x+=Math.max(0,(S.t-a.t0)-done/CFG.AMB_V);}return x;}
+function updateHUD(){const S=sim.S;const [d,c]=fmtClock(S.t);
+  $('day').textContent=`${d}日目・${STG?STAGES[STG].short:(SC==='east'?'3.11の電車の動き':'首都直下地震（想定）')}`;$('clock').textContent=c;
+  $('sHome').textContent=`${Math.round(S.stats.home/S.dots.length*100)}%`;
+  $('sStuck').textContent=fmtPeople(S.stats.stuckNow);$('sAmb').textContent=fmtMin(liveAmb());}
+
+const msgQ=[];let msgBusy=false;let msgTimer=null;
+function pushMsg(el,ms){const band=$('toasts');band.innerHTML='';if(sim){const tm=document.createElement('em');tm.className='tm';tm.textContent=fmtClock(sim.S.t).join('日目 ');el.prepend(tm);}band.appendChild(el);clearTimeout(msgTimer);
+  msgTimer=setTimeout(()=>{el.classList.add('out');},(ms||3800));}
+function simpleToast(msg,cls){const el=document.createElement('div');el.className='toast '+(cls||'');el.textContent=msg;pushMsg(el);}
+function jamToast(h,gaveUp){const el=document.createElement('div');el.className='toast rail jam';el.style.setProperty('--lc',C.jam);
+  el.innerHTML=`<b>⚠ ${N[h].name}駅に人があふれた</b><span class="route">20分間 入場規制${gaveUp?`・あきらめて歩き出した人 ${fmtPeople(gaveUp)}`:''}</span>`;pushMsg(el,4200);}
+function railToastMulti(lines){const toHome=lines.filter(li=>!W.D.rails[li].urban),city=lines.filter(li=>W.D.rails[li].urban);
+  if(!toHome.length){return simpleToast(`🚇 ${city.map(li=>W.D.rails[li].name).join('・')}が動いた（都内の乗り継ぎに使える）`);}
+  lines=toHome;if(lines.length===1)return railToast(lines[0]);
+  const el=document.createElement('div');el.className='toast rail';el.style.setProperty('--lc',W.D.rails[lines[0]].color);
+  const towns=[...new Set(lines.flatMap(li=>W.D.rails[li].stops.filter(s=>N[s].type==='home').map(s=>N[s].name)))];
+  el.innerHTML=`<b>🚃 電車が${lines.length}路線で動いた</b><span class="route">${towns.join('・')}へ</span>`;pushMsg(el,3800);}
+function railToast(li,again){const r=W.D.rails[li];const names=r.stops.map(s=>N[s].name);
+  const el=document.createElement('div');el.className='toast rail';el.style.setProperty('--lc',r.color);
+  el.innerHTML=`<b>🚃 ${again?'また動きだした':'電車が動いた'}</b><span class="route">${names.join('<i>→</i>')}</span>`;
+  pushMsg(el,3800);}
+
+// input：駅（滞在先）をタップ → 距離の色ごとに「帰す／待たせる」
+let popHub=null;
+const CLS_LABEL=['歩けるかも','きびしい','歩けない'];
+const canToggle=()=>phase==='setup'||phase==='run';
+function updateSetupText(){}
+function setCls(h,c,v){policy[h][c]=v;if(phase==='setup')allWaitLabel();if(phase==='run')actLog.push({t:sim.S.t,txt:`あなた：${N[h].name}駅の${c==='r'?'🚃電車で帰す':['青','橙','赤'][c]+'の歩いて帰す'}を「${v==='go'?'帰す':'待つ'}」に`});flashes.push({m:h,t:performance.now()});renderPop();}
+let pausedByPop=false;
+function openPop(h){if(phase==='run'&&!paused){setPaused(true);pausedByPop=true;}popHub=h;renderPop();}
+function closePop(){popHub=null;renderPop();if(pausedByPop&&phase==='run'){setPaused(false);}pausedByPop=false;}
+function renderPop(){const pop=$('pop');if(!popHub){pop.hidden=true;document.body.classList.remove('popopen');return;}const h=popHub,n=N[h];
+  let rail=0;const cnt=[0,0,0];W.homes.forEach(m=>{const k=sim.S.waiting[h][m].length;if(!k)return;if(sim.railRoute(h,m))rail+=k;else cnt[cls(W.walk[h][m].km)]+=k;});
+  const p_=policy[h];const btn=(key,on,ico,lab,num)=>`<button class="pb ${on?'on':''}" data-k="${key}" aria-pressed="${on}">${ico}<span>${lab}</span><small>${num}</small><b>${on?'帰す':'待つ'}</b></button>`;
+  const q=Math.min(1,sim.S.queue[h].length/sim.S.stationMax[h]);let html=`<div class="ph"><b>${n.name}駅周辺</b><span class="pg" title="駅の混み具合"><i style="width:${Math.round(q*100)}%;background:${q>0.75?C.jam:(q>0.4?C.c1:C.c0)}"></i></span><span class="pgt">混雑目安 ${Math.round(q*100)}%</span>${phase==='run'?'<span class="pz">⏸ 停止中</span>':''}<button class="px">閉じる</button></div>`;
+  html+=`<div class="pgrid">${btn('r',p_.r==='go','<i class="tr">🚃</i>','電車で帰す',rail?fmtPeople(rail):'今は0人')}`;
+  const KM=['家まで10km未満','10〜20km','20km超'];[0,1,2].forEach(c=>html+=btn(c,p_[c]==='go',`<i class="dot d${c}"></i>`,`歩いて帰す<br><em>${KM[c]}</em>`,fmtPeople(cnt[c])));
+  const hlAll=sim.S.dots.filter(d=>d.homeless&&d.hub===h).length,hlIn=sim.S.dots.filter(d=>d.homeless&&d.hub===h&&d.sheltered).length;
+  html+=`</div><p class="pnote">箱＝この地域の職場などで待つ人。ゲージ＝駅へ向かう・乗車を待つ人（ゲーム上の混雑目安）。<br>🚃は、家まで電車が通じている人だけ。歩くのは、電車で帰れない人のうち選んだ色の人だけ。<br>⛺ 一時滞在施設${sim.S.t<CFG.SHELTER_OPEN?'（約6時間後に開設）':''}：待つ場所のない${fmtPeople(hlAll)}のうち${fmtPeople(hlIn)}が入れる${hlAll>hlIn?`（${fmtPeople(hlAll-hlIn)}は入れず歩き出す）`:''}</p><div class="prow"><button class="pa" data-all="wait">全部待たせる</button>`;
+
+  html+='</div>';pop.innerHTML=html;pop.hidden=false;document.body.classList.add('popopen');}
+$('pop').addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b||!popHub)return;
+  if(b.classList.contains('px')){closePop();return;}
+  if(b.dataset.k!=null){const k=b.dataset.k==='r'?'r':+b.dataset.k;setCls(popHub,k,policy[popHub][k]==='go'?'wait':'go');return;}
+  if(b.dataset.all){['r',0,1,2].forEach(c=>policy[popHub][c]=b.dataset.all);if(phase==='run')actLog.push({t:sim.S.t,txt:`あなた：${N[popHub].name}駅を全部「待つ」に`});flashes.push({m:popHub,t:performance.now()});renderPop();return;}
+});
+// フリック操作：駅に触れて、行きたい方向へ指をすべらせて離す。触れてすぐ離すと、くわしいパネルが開く
+// 指で隠れないよう、選択肢は指の上に横一列で出す（左から 全部待つ・電車・青・橙・赤）。指をすべらせて選び、離すと決定
+const FLICK=[{k:'all',ico:'✋',lab:'全部待つ'},{k:'r',ico:'🚃',lab:'電車'},{k:0,ico:'<i class="dot d0"></i>',lab:'青 歩く'},{k:1,ico:'<i class="dot d1"></i>',lab:'橙 歩く'},{k:2,ico:'<i class="dot d2"></i>',lab:'赤 歩く'}];
+const FW=62,FUP=92;let fl=null,flPos=[];const fx=$('flick');
+function flickRender(sel){const h=fl.h,p_=policy[h];
+  let html=`<div class="fc" style="left:${fl.px}px;top:${fl.py}px"></div>`;
+  FLICK.forEach((f,i)=>{const on=f.k==='all'?false:p_[f.k]==='go';const [x,y]=flPos[i];
+    html+=`<div class="fp ${on?'on':''} ${sel===i?'sel':''}" style="left:${x}px;top:${y}px">${f.ico}<span>${f.lab}</span><em>${f.k==='all'?'':on?'帰す':'待つ'}</em></div>`;});
+  html+=`<div class="fn" style="left:${flPos[2][0]}px;top:${flPos[2][1]-48}px">${N[h].name}駅：上へすべらせて選ぶ</div>`;
+  fx.innerHTML=html;}
+function flickSel(px,py){let best=-1,bd=40;flPos.forEach(([x,y],i)=>{const d=Math.hypot(px-x,py-y);if(d<bd){bd=d;best=i;}});
+  // 列の高さまで指を上げたら、横の位置で最も近いものを選ぶ
+  if(best<0&&py<flPos[0][1]+30){let bx=999;flPos.forEach(([x],i)=>{const d=Math.abs(px-x);if(d<bx){bx=d;best=i;}});}
+  return best;}
+function flickToast(h,txt){const r=stage.getBoundingClientRect();const el=document.createElement('div');el.className='fltoast';el.textContent=txt;
+  el.style.left=X(N[h].x)+'px';el.style.top=Y(N[h].y-9)+'px';stage.appendChild(el);setTimeout(()=>el.remove(),1100);}
+cv.addEventListener('pointerdown',ev=>{if(!canToggle())return;const r=cv.getBoundingClientRect();const x=(ev.clientX-r.left-ox)/sc,y=(ev.clientY-r.top-oy)/sc;
+  const hb=W.hubs.find(h=>Math.abs(N[h].x-x)<9.5&&y>N[h].y-9&&y<N[h].y+13);
+  if(!hb){closePop();return;}
+  if(popHub){closePop();}
+  fl={h:hb,x0:ev.clientX,y0:ev.clientY,sel:-1,id:ev.pointerId};try{cv.setPointerCapture(ev.pointerId);}catch(e){}
+  const sr=stage.getBoundingClientRect();const px=ev.clientX-sr.left,py=ev.clientY-sr.top;
+  const half=FW*2;const cx=Math.max(half+FW/2+4,Math.min(sr.width-half-FW/2-4,px));const ry=Math.max(70,py-FUP);
+  flPos=FLICK.map((f,i)=>[cx+(i-2)*FW,ry]);fl.px=px;fl.py=py;
+  fx.style.left='0px';fx.style.top='0px';flickRender(-1);fx.hidden=false;ev.preventDefault();});
+cv.addEventListener('pointermove',ev=>{if(!fl||ev.pointerId!==fl.id)return;const sr=stage.getBoundingClientRect();const s=Math.hypot(ev.clientX-fl.x0,ev.clientY-fl.y0)<18?-1:flickSel(ev.clientX-sr.left,ev.clientY-sr.top);if(s!==fl.sel){fl.sel=s;flickRender(s);}});
+function flickEnd(ev,cancel){if(!fl)return;const f=fl;fl=null;fx.hidden=true;if(cancel)return;const moved=Math.hypot(ev.clientX-f.x0,ev.clientY-f.y0);
+  if(f.sel<0){if(moved<14)openPop(f.h);return;}
+  const it=FLICK[f.sel];const h=f.h;
+  if(it.k==='all'){['r',0,1,2].forEach(c=>policy[h][c]='wait');if(phase==='run')actLog.push({t:sim.S.t,txt:`あなた：${N[h].name}駅を全部「待つ」に`});flashes.push({m:h,t:performance.now()});flickToast(h,'✋ 全部待つ');}
+  else{const v=policy[h][it.k]==='go'?'wait':'go';setCls(h,it.k,v);flickToast(h,`${it.k==='r'?'🚃 電車':['青','橙','赤'][it.k]+' 歩く'}：${v==='go'?'帰す':'待つ'}`);}}
+cv.addEventListener('pointerup',ev=>flickEnd(ev,false));cv.addEventListener('pointercancel',ev=>flickEnd(ev,true));
+function allWaitLabel(){const allW=W.hubs.every(h=>['r',0,1,2].every(c=>policy[h][c]==='wait'));$('bAllWait').innerHTML=allW?'全部の駅を<b>【帰す】</b>に':'全部の駅を<b>【待つ】</b>に';}
+$('bAllWait').onclick=()=>{const allW=W.hubs.every(h=>['r',0,1,2].every(c=>policy[h][c]==='wait'));policy=allPol(W,allW?'go':'wait');renderPop();allWaitLabel();W.hubs.forEach(h=>flashes.push({m:h,t:performance.now()}));};
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'){closePop();}
+  if(ev.key===' '&&phase==='run'){ev.preventDefault();setPaused(!paused);}});
+
+const bPlay=$('bPlay'),bSpeed=$('bSpeed');
+function setPaused(p){paused=p;bPlay.dataset.state=p?'paused':'playing';bPlay.setAttribute('aria-label',p?'再生':'一時停止');}
+bPlay.onclick=()=>{if(phase!=='run')return;if(popHub){popHub=null;renderPop();pausedByPop=false;}setPaused(!paused);};
+bSpeed.onclick=()=>{const seq=SC==='shuto'?[1,3,10,30]:[1,3,10];speed=seq[(seq.indexOf(speed)+1)%seq.length];bSpeed.textContent=`×${speed}`;bSpeed.setAttribute('aria-pressed',speed>1);};
+
+function toSetup(){setTimeout(allWaitLabel,0);['intro','result'].forEach(id=>$(id).hidden=true);$('stText').textContent=STG?STAGES[STG].goal:'都内の駅に触れて、指をすべらせて選ぶ（触れてすぐ離すとくわしいパネル）';popHub=null;pausedByPop=false;reset();renderPop();updateSetupText();phase='setup';setPaused(true);bPlay.disabled=true;
+  $('setup').hidden=false;$('bar').classList.add('setting');hintUntil=performance.now()+4000;}
+function run(){popHub=null;pausedByPop=false;renderPop();$('setup').hidden=true;$('bar').classList.remove('setting');phase='run';bPlay.disabled=false;setPaused(false);
+  const hlAll=sim.S.dots.filter(d=>d.homeless).length,hlOut=sim.S.dots.filter(d=>d.homeless&&!d.sheltered).length;
+  setTimeout(()=>simpleToast(`⛺ 一時滞在施設は開設の準備中（約6時間）。待つ場所のない${fmtPeople(hlAll)}は、駅前の広場などで待つ`),700);
+  if(SC==='shuto')setTimeout(()=>simpleToast('🚃 首都直下地震では、地下鉄は1週間、JR・私鉄は1か月ほど止まるおそれ'),5200);
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){stage.classList.remove('shake');void stage.offsetWidth;stage.classList.add('shake');}}
+$('bEast').onclick=()=>{setWorld('east');toSetup();};
+$('bShuto').onclick=()=>{setWorld('shuto');toSetup();};
+$('bGo').onclick=run;
+$('bOther').onclick=()=>{if(STG==='p1')setWorld('east','p2');else setWorld('east');toSetup();};
+$('bP1').onclick=()=>{setWorld('east','p1');toSetup();};$('bP2').onclick=()=>{setWorld('east','p2');toSetup();};
+$('bAgain').onclick=()=>{setWorld(SC,STG);toSetup();};
+$('bMap').onclick=()=>{$('result').hidden=true;showMarks=true;$('bBack').hidden=false;};
+$('bBack').onclick=()=>{$('result').hidden=false;showMarks=false;$('bBack').hidden=true;};
+// 次の出来事まで早送り
+function nextEventT(){const S=sim.S,c=[];W.resume.forEach(t=>{if(isFinite(t)&&t>S.t)c.push(t);});W.poolStages.forEach(st=>st.forEach(x=>{if(isFinite(x.t)&&x.t>S.t)c.push(x.t);}));
+  if(CFG.SHELTER_OPEN>S.t)c.push(CFG.SHELTER_OPEN);if(SC==='shuto'&&CFG.T72>S.t)c.push(CFG.T72);return c.length?Math.min(...c):S.t+60;}
+$('bSkip').onclick=()=>{if(phase!=='run'||sim.S.done)return;if(popHub){popHub=null;renderPop();pausedByPop=false;}const target=nextEventT();
+  while(sim.S.t<target&&!sim.S.done){sim.step(policy);if(sim.S.events.some(e=>e.type==='jam'))break;}updateHUD();};
+const STARS=[[85,5],[65,4],[45,3],[25,2],[0,1]];
+const TITLES={5:'混乱をとても小さくできた',4:'混乱をかなり小さくできた',3:'混乱を小さくできた',2:'改善の余地がある帰し方',1:'道も駅も大きく混乱した'};
+const HINTS={
+ east:{tired:['途中でへとへとになった人が多くいます。遠くに住む人を歩かせていませんか。','電車で帰れない人は、駅で待たせましょう。「歩いて帰す」は色を選んで使います。','家まで電車が通じた人から、🚃「電車で帰す」で帰しましょう。'],
+  amb:['救急車が人の波で止められています。地震の直後に一斉に帰していませんか。','スタート前に「全部の駅を待つに」を押しておきましょう。','夜のあいだは「歩いて帰す」を使わないと、道が空きます。'],
+  gaveUp:['駅に人があふれ、あきらめて歩き出した人がいます。','🚃「電車で帰す」を入れっぱなしにすると、駅があふれます。','駅の箱の上のゲージが半分に近づいたら、🚃を「待つ」に戻し、下がったらまた「帰す」に。'],
+  last:['全員が帰り終わるまで時間がかかっています。','ゲージが低い駅は、🚃「電車で帰す」にして構いません。','南北線（埼玉高速鉄道直通）は当日の夜に動きます。永田町の🚃を使いましょう。']},
+ shuto:{amb:['救急車が人の波で止められています。救助の需要が大きい時期に歩かせていませんか。','救命・救助の需要が大きい最初の3日ほどは、待つことを考えましょう。','一度に全員を歩かせず、駅ごと・色ごとに少しずつ帰しましょう。'],
+  over:['会社の備蓄が切れた人がいます。待たせすぎです。','備蓄は3日分です。それを過ぎる前に、帰し始めましょう。','3日が近づいたら、駅ごと・色ごとに少しずつ「歩いて帰す」にしましょう。'],
+  last:['帰し終わるまでに時間がかかっています。','帰し始めたら、間をあけすぎないようにしましょう。','10分おきくらいに、駅と色を1つずつ「歩いて帰す」にしましょう。']}};
+function recipeText(){const sh=refInfo.shel.map(h=>N[h].name).join('・');
+  if(STG==='p1')return `【好成績だった帰し方の一例】①スタート時は全部「待つ」になっています。②21:20に南北線（埼玉高速鉄道直通）が動いたら、🚃「電車で帰す」にする。③箱の上のゲージが${Math.round(refInfo.g*10)}割を超えたら🚃を「待つ」に戻し、下がったら「帰す」に。迷ったら一時停止して構いません。`;
+  if(STG==='p2')return `【好成績だった帰し方の一例】①スタート時は全部「待つ」になっています。②池袋・永田町の両方で、ゲージが${Math.round(refInfo.g*10)}割を超えたら🚃を「待つ」に、下がったら「帰す」に。③池袋の青（家まで10km未満）の人は、歩いて帰して構わない。`;
+  if(SC==='east')return `【好成績だった帰し方の一例】①スタート前に「全部の駅を待つに」を押す。②当日の夜、南北線（埼玉高速鉄道直通）が動いたら、永田町の🚃「電車で帰す」を使う。③翌朝、各駅で🚃「電車で帰す」を使う。④どの駅も、箱の上のゲージが${Math.round(refInfo.g*10)}割を超えたら🚃を「待つ」に戻し、下がったら「帰す」に。迷ったら一時停止して構いません。⑤青（家まで10km未満）の人は、道が混んでいなければ、早めに「歩いて帰す」にして構わない。電車が動くのを待つ必要はない。橙・赤の人は歩かせない。`;
+  const [d,c]=fmtClock(refInfo.st);
+  return `【好成績だった帰し方の一例】①スタート前に「全部の駅を待つに」を押す。②${d}日目 ${c}ごろから、${refInfo.g}分おきに、駅と色を1つずつ「歩いて帰す」にする（青→橙→赤の順）。③地下鉄が動いたら、その駅の🚃「電車で帰す」も使う。被害の状況によって、適した時期は変わります。`;}
+function playsKey(){return 'kaeru_plays_'+(STG||SC);}
+function getPlays(){try{return parseInt(localStorage.getItem(playsKey())||'0',10)||0;}catch(e){return 0;}}
+function setPlays(n){try{localStorage.setItem(playsKey(),String(n));}catch(e){}}
+function showResult(){phase='end';setPaused(true);clearTimeout(msgTimer);$('toasts').innerHTML='';popHub=null;pausedByPop=false;renderPop();
+  const NN=sim.S.dots.length;const you=metricsOf(W,sim);const sc_=scoreOf(SC,you,base,ref,sim.T_END);const pts=Math.round(sc_.total);
+  const stars=STARS.find(([th])=>pts>=th)[1];
+  const when=m=>m.last>sim.T_END?`${fmtPeople(NN-sim.S.stats.home)}が<br>まだ帰れない`:fmtWhen(m.last);
+  const P=n=>fmtPeople(n);
+  const good=k=>sc_.parts[k]>=0.85?'good':(sc_.parts[k]<0.4?'bad':'');
+  let rows;
+  if(SC==='east')rows=[['全員帰宅',when(you),when(base),good('last')],['途中でへとへとに',P(you.tired),P(base.tired),good('tired')],
+    ['救急車の遅れ',fmtMin(you.amb),fmtMin(base.amb),good('amb')],['駅であきらめて歩いた人',P(you.gaveUp),P(base.gaveUp),good('gaveUp')],
+    ['施設に入れず歩いた人（参考）',P(you.forced),P(base.forced),'']];
+  else rows=[['全員帰宅',when(you),when(base),good('last')],['救急車の遅れ',fmtMin(you.amb),fmtMin(base.amb),good('amb')],['途中でへとへとに（参考）',P(you.tired),P(base.tired),''],
+['備蓄が切れた人',P(you.over),P(base.over),good('over')],
+    ['施設に入れず歩いた人（参考）',P(you.forced),P(base.forced),'']];
+  $('stars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);$('stars').setAttribute('aria-label',`評価 5段階中${stars}`);
+  $('score').textContent=`${pts}点`;
+  $('rTitle').textContent=TITLES[stars];
+  const tl=SC==='east'?[['🏠','全員帰宅',when(you),when(base),good('last')],['🧍','へとへと',P(you.tired),P(base.tired),good('tired')],['🚑','救急車の遅れ',fmtMin(you.amb),fmtMin(base.amb),good('amb')],['⚠','駅であきらめた人',P(you.gaveUp),P(base.gaveUp),good('gaveUp')]]
+    :[['🏠','全員帰宅',when(you),when(base),good('last')],['🚑','救急車の遅れ',fmtMin(you.amb),fmtMin(base.amb),good('amb')],['🍙','備蓄が切れた人',P(you.over),P(base.over),good('over')],['⛺','施設に入れず',P(you.forced),P(base.forced),'']];
+  $('rTiles').innerHTML=tl.map(t=>`<div class="tile ${t[4]}"><span class="ti">${t[0]}</span><span class="tl">${t[1]}</span><span class="tv">${t[2]}</span><span class="tb">すぐ帰すと ${String(t[3]).replace('<br>','')}</span></div>`).join('');
+  $('rRows').innerHTML=rows.map(r=>`<tr class="${r[3]}"><th scope="row">${r[0]}</th><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+  // ヒント：回を重ねるほど具体的に、4回目以降は手順の完全版
+  const plays=getPlays()+1;setPlays(plays);
+  let hint;
+  $('dRecipe').hidden=!(plays>=4||stars===5);$('rRecipe').textContent=recipeText().replace('【好成績だった帰し方の一例】','');
+  if(stars===5)hint='会社で待ち、少しずつ帰すことが、道と駅と救急車を守ります。';
+  else if(plays>=4)hint='下の「帰し方の例」を開いてみましょう。';
+  else{const w=WEIGHTS[SC];const worst=Object.keys(w).sort((a,b)=>w[b]*(1-sc_.parts[b])-w[a]*(1-sc_.parts[a]))[0];
+    hint=HINTS[SC][worst][Math.min(plays,3)-1].replace('{SHEL}',refInfo.shel.map(h=>N[h].name).join('・'));}
+  $('rHint').innerHTML=`${stars===5?'✨ ':'💡 '}${hint}`;
+  let fact=SC==='east'
+    ?(you.gaveUp>0?'電車が動いても、一度に駅へ向かうとホームがあふれます。東日本大震災の夜も、銀座線は渋谷駅のホーム混雑で2回運転を見合わせました。':'東日本大震災では、首都圏で約515万人が帰宅困難になりました。会社や学校で待つことが、道と救急車を空けます。')
+    :'国や都は、首都直下地震では原則3日間、会社などで待つよう呼びかけています。待つ間に道や電車の状況を確かめ、帰れる人から少しずつ帰すのが基本です。';
+  if(you.last>base.last&&base.tired>you.tired)fact=`全員が帰り終わる時刻は、すぐ帰した場合より遅くなりました。その代わり、へとへとになった人や救急車の遅れを減らせています。`+fact;
+  else if(you.last<=base.last&&pts>=65)fact=`すぐ帰した場合より、全員が早く帰り終わりました。電車の動きに合わせて少しずつ帰すと、混雑が減って早く帰れることがあります。`+fact;
+  $('rFact').textContent=fact;
+  const WL={tired:'へとへと',amb:'救急車',gaveUp:'駅のあふれ',forced:'施設に入れず',last:'帰宅完了',over:'備蓄切れ'};
+  $('rWeights').textContent='評価の内訳：'+Object.entries(WEIGHTS[SC]).map(([k,v])=>`${WL[k]}${Math.round(v*100)}%`).join('・');
+  $('bOther').textContent=STG==='p1'?'次へ：練習2':STG==='p2'?'本番：東日本大震災（2011年）':'';$('bOther').hidden=!STG;
+  $('rLog').innerHTML=buildLog();fillMine();
+  $('rFine').innerHTML=FINE[SC];
+  $('result').querySelector('.card').scrollTop=0;$('result').hidden=false;}
+function edgeName(eid){const e=W.edges[eid];return `${N[e.a].name}〜${N[e.b].name}`;}
+function buildLog(){const S=sim.S,items=[];
+  W.resume.forEach((t,li)=>{const r=W.D.rails[li];if(r.urban||!isFinite(t)||t>S.t||t<(W.startT||0))return;items.push({t,txt:`🚃 ${r.name}が動いた`});});
+  if(CFG.SHELTER_OPEN>(W.startT||0)&&CFG.SHELTER_OPEN<=S.t)items.push({t:CFG.SHELTER_OPEN,txt:'⛺ 一時滞在施設が開いた'});
+  let a=false,ti=false;S.log.forEach(g=>{if(g.type==='amb'&&!a){a=true;items.push({t:g.t,txt:`🚑 ${edgeName(g.e)}の道で、救急車が人の波に止められた`,bad:1});}
+    if(g.type==='tired'&&!ti){ti=true;items.push({t:g.t,txt:`🧍 ${edgeName(g.e)}の道で、へとへとになる人が出はじめた`,bad:1});}
+    if(g.type==='jam')items.push({t:g.t,txt:`⚠ ${N[g.hub].name}駅のホームがあふれ、入場規制${g.gaveUp?`（${fmtPeople(g.gaveUp)}があきらめて歩き出した）`:''}`,bad:1});});
+  actLog.forEach(x=>items.push({t:x.t,txt:x.txt,me:1}));
+  items.sort((p,q)=>p.t-q.t||(q.me||0)-(p.me||0));
+  // 長すぎる場合は、自分の操作を間引き、出来事を優先
+  let list=items;if(list.length>12){const ev=list.filter(x=>!x.me);const me=list.filter(x=>x.me);list=[...ev,...me.slice(0,Math.max(0,12-ev.length))].sort((p,q)=>p.t-q.t).slice(0,12);}
+  if(!list.length)return '';
+  return '<b>ふりかえり（時刻順）</b><ul>'+list.map(x=>{const [d,c]=fmtClock(x.t);return `<li class="${x.bad?'bad':x.me?'me':''}"><span>${d}日目 ${c}</span>${x.txt}</li>`;}).join('')+'</ul><p class="lgnote">「地図でふりかえる」で、問題が起きた場所を地図に表示します。</p>';}
+function drawMarks(){const S=sim.S;
+  const byEdge=(obj)=>{const m={};Object.entries(obj).forEach(([k,v])=>{const [e,c]=k.split(':').map(Number);if(!m[e])m[e]={n:0,cs:0,best:c,bv:0};m[e].n+=v;if(v>m[e].bv){m[e].bv=v;m[e].best=c;}});return m;};
+  const tired=byEdge(S.marks.tired),amb=byEdge(S.marks.amb);
+  Object.entries(tired).forEach(([e,o])=>{const [x,y]=edgePoint(+e,(o.best+0.5)*CFG.CELL,0);const r=Math.min(5,1.6+Math.sqrt(o.n)*0.5);
+    ctx.beginPath();ctx.arc(X(x),Y(y),r*sc,0,7);ctx.fillStyle='rgba(120,128,138,.85)';ctx.fill();ctx.lineWidth=0.5*sc;ctx.strokeStyle=C.panel;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font=`900 ${1.9*sc}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(fmtPeople(o.n).replace('人',''),X(x),Y(y));});
+  Object.entries(amb).forEach(([e,o])=>{const [x,y]=edgePoint(+e,(o.best+0.5)*CFG.CELL,2.5);ctx.beginPath();ctx.arc(X(x),Y(y),2.6*sc,0,7);ctx.fillStyle=C.panel;ctx.fill();ctx.lineWidth=0.7*sc;ctx.strokeStyle=C.jam;ctx.stroke();
+    ctx.font=`${2.6*sc}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🚑',X(x),Y(y)+0.1*sc);});
+  Object.entries(S.marks.jam).forEach(([h,n])=>{const nn=N[h];ctx.beginPath();ctx.arc(X(nn.x+7),Y(nn.y-6),2.8*sc,0,7);ctx.fillStyle=C.jam;ctx.fill();
+    ctx.fillStyle='#fff';ctx.font=`900 ${2.2*sc}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⚠'+n,X(nn.x+7),Y(nn.y-6));});
+  ctx.fillStyle=C.ink;ctx.font=`700 ${2.3*sc}px sans-serif`;ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('灰色の丸＝へとへとになった人　🚑＝救急車が止められた所　⚠＝駅があふれた回数',X(1),Y(1));}
+// あなたの場合
+function earliestRail(h,m){const E_=WE;const ts=[...new Set(E_.resume.filter(isFinite))].sort((a,b)=>a-b);
+  for(const t of ts){const r=railPath(E_,h,m,li=>E_.resume[li]<=t);if(r){const ls=[];r.legs.forEach(l=>{const nm=E_.D.rails[l.line].name;if(ls[ls.length-1]!==nm)ls.push(nm);});return {t,lines:ls};}}
+  return null;}
+function fillMine(){if(!WE)WE=buildWorld(DATA,'east',1);const sh=$('mHub'),sm=$('mHome');
+  if(!sh.options.length){WE.hubs.forEach(h=>sh.add(new Option(WE.N[h].name+'駅のあたり',h)));WE.homes.forEach(m=>sm.add(new Option(WE.N[m].name,m)));sh.onchange=sm.onchange=mineText;}
+  mineText();}
+function mineText(){const h=$('mHub').value,m=$('mHome').value;const km=WE.walk[h][m].km;const c=cls(km);const col=['青','橙','赤'][c];
+  // ゲームの条件に当てはめた目安。個人に合った行動を判定するものではない
+  let t=`ゲームの条件では、家まで約${km.toFixed(0)}km（${col}）、休まずに歩いて約${Math.round(km/4*10)/10}時間です。`;
+  if(c===0)t+='都の被害想定の考え方では、歩いて帰れる距離とされています。';
+  else if(c===1)t+='都の被害想定の考え方では、途中で歩けなくなる人も出る距離とされています。';
+  else t+='都の被害想定の考え方では、歩いて帰るのが難しい距離とされています。';
+  {const r=earliestRail(h,m);if(r){const [d,cl]=fmtClock(r.t);t+=`東日本大震災の記録に当てはめると、家まで電車が通じたのは${d===1?'当日':d===2?'翌日':d+'日目'} ${cl}ごろでした（${r.lines.join('→')}）。`;}}
+  t+='実際の行動は、被害の状況や勤務先・自治体の指示によって変わります。国や都は、一斉に帰らず会社などで待つこと（被害が大きいときは原則3日間）、会社での水・食料の備えや、家族との連絡方法（災害用伝言ダイヤル171など）を決めておくことを呼びかけています。';$('mOut').textContent=t;}
+
+const FINE={east:'このゲームは、電車の止まり方・再開時刻は2011年の実績、人数と一時滞在施設は現在の値を使い、条件を簡略化したものです。現実の被害を予測するものではありません。評価は、このゲームで扱う条件（道や駅の混雑、救急車の通りやすさ、疲れ）だけで付けています。余震・火災・落下物などによる道の安全や、救助活動への影響は省いているため、ゲームで翌日に帰した方が高得点でも、現実にそうすべき根拠にはなりません。原則として3日間の待機を踏まえ、目的地までの全区間が動いているか、道が安全か、移動が新たな混乱を生まないかなど、帰宅できる条件が整ったかを確かめて判断することが大切です。電車の再開時刻と路線網は東日本大震災（2011年3月11日）当時のもの（国土交通省の検証報告書）で、上野東京ライン（2015年開業）はありません。銀座線は20:40に再開した後、駅のホーム混雑で運転見合わせがありましたが、ここでは反映していません。都心の揺れは震度5強で、首都直下地震ではさらに遅れるおそれがあります。',
+  shuto:'電車の止まる期間は国の首都直下地震の被害想定（地下鉄は1週間、JR・私鉄は1か月程度）によります。地下鉄が動きだす日はこの範囲で毎回変わります。会社での待機は原則3日間（国・都の呼びかけ）、備蓄は3日分として計算しています。救急車は、発災後72時間は20分おき、その後は40分おきに出動すると想定しています。道路の損壊や火災による通行止めは、まだ組み込んでいません。待つ場所のない人は、都の被害想定の割合（帰宅困難者453万人のうち66万人）に合わせています。'};
+const FINE_COMMON='<br>【使ったデータ】通勤・通学者：令和2年国勢調査（不詳補完、従業地・通学地）。14時台に都内にいる割合・待つ場所のない人：出典：第6回東京都市圏パーソントリップ調査（東京都市圏交通計画協議会、平成30年）のデータ集計システムによる集計結果を加工して作成。一時滞在施設：特別区長会調査研究機構 令和5年度報告書ほか各区資料。区の数字に都立施設が含まれない区（含むと確認できた新宿・豊島・練馬以外）は、都立一時滞在施設の数×1施設約350人（都が当初200施設で約7万人と想定）を上乗せ（暫定）。帰宅困難者数：東京都の被害想定（令和4年）。徒歩の距離：Googleマップの徒歩経路による実測（2026年10月）。電車の輸送力：国交省 都市鉄道の混雑率調査（令和7年度）の朝ピーク1時間の輸送力（都心へ向かう上り方向の値を、帰宅方向の運転能力の目安として使用）に、再開直後の運転本数の減少を見込んで50%を掛けた値（減少率は仮定）。人は500人単位で乗るため、枠の端数は次の分に繰り越します（最大500人分まで。空席のまま出た列車の枠をためておくことはしません）。全員帰宅の時刻はこの簡略モデルでの値で、現実の予測値ではありません。高崎線・宇都宮線は2011年当時の上野発着として扱います。駅の箱は、その駅の周辺の区で働く・学ぶ対象者のうち、地域内で待っている人の数で、実際の駅全体の人数ではありません。箱の上のゲージは、駅へ向かう・乗車を待つ対象者の数を、その駅に発着する埼玉方面の路線の輸送力（40分ぶん）と比べたゲーム上の混雑目安で、ホームの収容人数ではありません。電車は、複数の駅で路線の輸送枠を分け合う簡略モデルです。すべての駅の乗車待ちを駅に着いた順に並べて枠を割り当てるもので、実際の乗車順や区間ごとの混み方を再現したものではありません。上野の箱は、北千住で東武線に乗り換える経路も含めて扱っています（東武線の起点は浅草）。県境近くの区で働き、家まで10kmを超える約3.3万人は、画面には出さず、赤羽（北・板橋・荒川区）と北千住（足立・葛飾・江戸川区）を地域の代表地点として、そこから乗る人が埼玉方面の列車の枠を使う扱いです。代表地点までの乗り継ぎ（例：赤羽から北千住へ）は省いています。全員が電車を使い、路線が動いてから120分のうちに駅に着く、という電車の負荷を大きく置いた一つの条件です。東武線へは千代田線・日比谷線で北千住に出て乗り換える扱いで（東武の再開8:57から）、東武線の輸送力の範囲内です。半蔵門線（押上で東武へ）は、押上を含む区間の再開が3/12 13:00だったため使いません。都内の駅どうしは丸ノ内線・有楽町線・銀座線・山手線で乗り継げます（都内の区間で埼玉へ向かう路線の座席を使わないよう、乗り継ぎ用の路線を優先）（3.11の再開時刻どおり。輸送力の制約は埼玉へ向かう路線で見ます）。乗り継ぎ先の路線が動くまでは、出発駅で待ちます。県境近くの区（北・板橋・足立・荒川・葛飾・江戸川）で働く人のうち、家まで10km以内の人は地震直後から自分で歩いて帰ります（それより遠い人は職場で待つ扱いで、画面には出しません）。1つの点は500人です。一時滞在施設は、国のガイドラインに沿って発災から約6時間後に開設し、全駅で受入能力いっぱいまで受け入れます。入れなかった待つ場所のない人は、開設時に歩き出します。点の色は、都の被害想定の考え方（家まで10km以内は全員歩いて帰れる、20km超は全員帰れない）によります。会社などの帰す・待たせるの判断には、全員が従う前提です（実際には、子どもの迎えなどで自分の判断で帰る人もいます）。県境近くの区で働く人は地震直後から歩いて帰る扱いですが、国の指針は近距離の人にも分散して帰ることを求めており、それが守られれば道はもう少しすく可能性があります。<br>試作版 v0.1　制作：さいたま市議会議員 三神たかし';
+Object.keys(FINE).forEach(k=>FINE[k]+=FINE_COMMON);
+setWorld('east');reset();
+let last=performance.now();
+function frame(now){const dt=Math.min(0.1,(now-last)/1000);last=now;
+  if(phase==='run'&&!paused&&!sim.S.done){acc+=dt*RATE*speed;let n=0;while(acc>=1&&n<120){sim.step(policy);acc--;n++;}}
+  if(phase==='run'){
+    let resumed=false;const railNow=[];let jamMsg=null,stageMsg=null,otherMsg=null;
+    while(sim.S.events.length){const e=sim.S.events.shift();
+      if(e.type==='jam'){jamMsg=e;flashes.push({m:e.hub,t:now,long:true,col:C.jam});}
+      else if(e.type==='unjam'){}
+      else if(e.type==='stage'){stageMsg=e;}
+      else if(e.type==='shelter'){const hlOut=sim.S.dots.filter(d=>d.homeless&&!d.sheltered).length;
+        otherMsg=hlOut>0?`⛺ 一時滞在施設が開いた。受入枠を超えた${fmtPeople(hlOut)}は歩き出す（白抜きの点）`:'⛺ 一時滞在施設が開いた。待つ場所のない人は全員入れた';}
+      else if(e.type==='t72'){otherMsg='⏱ 3日たった。救助のピークが過ぎた。会社の備蓄も残りわずか';}
+      else if(e.type==='rail'){resumed=true;anims[e.line]=now;railNow.push(e.line);
+        const r=W.D.rails[e.line];r.stops.forEach(s=>{if(N[s].type==='home')flashes.push({m:s,t:now,long:true,col:r.color});});}}
+    if(jamMsg)jamToast(jamMsg.hub,jamMsg.gaveUp);
+    else if(railNow.length)railToastMulti(railNow);
+    else if(stageMsg)simpleToast(`🚃 ${stageMsg.label}も動きだした（本数が増えた）`);
+    else if(otherMsg)simpleToast(otherMsg);
+    if(resumed)computeReach();
+    updateHUD();if(sim.S.done&&!resultQueued){resultQueued=true;setTimeout(showResult,600);}}
+  draw(now);requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+})();
+
+</script>
+</body>
+</html>
