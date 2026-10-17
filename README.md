@@ -128,4 +128,4 @@ test/test.js      検証テスト： node test/test.js
 - **MIT License の対象**：プログラムのコード（`src/*.js`、`src/shell.html`、`build.js`、`test/`）。`LICENSE` を参照
 - **MIT License の対象外**：`src/data.json` に含まれる数値と、その元になったデータ（4章の各出典の利用条件に従う。6章のとおり未確認のものを含む）、フォント（SIL Open Font License 1.1）
 
-制作：三神たかし（さいたま市議会議員）
+制作：三神たかし（防災士・さいたま市見沼区防災アドバイザー会副会長・さいたま市議会議員）
